@@ -2,7 +2,6 @@ from flask import Flask
 import threading
 import os
 import telebot
-import sqlite3
 import uuid
 import time
 from telebot.types import *
@@ -13,7 +12,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot is running"
+    return "Bot Running"
 
 def run():
     port = int(os.environ.get("PORT",8080))
@@ -28,17 +27,7 @@ ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 bot = telebot.TeleBot(TOKEN)
 
-# ---------------- DATABASE ----------------
-
-conn = sqlite3.connect("shop.db",check_same_thread=False)
-cursor = conn.cursor()
-
-cursor.execute("CREATE TABLE IF NOT EXISTS items(name TEXT,price TEXT)")
-cursor.execute("CREATE TABLE IF NOT EXISTS orders(order_id TEXT,user_id INTEGER,package TEXT,uid TEXT,whatsapp TEXT,status TEXT)")
-
-conn.commit()
-
-user_data = {}
+orders = {}
 
 # ---------------- MENU ----------------
 
@@ -68,53 +57,75 @@ def start(m):
 @bot.message_handler(func=lambda m: m.text=="🛒 Shop Items")
 def shop(m):
 
-    cursor.execute("SELECT * FROM items")
-    items = cursor.fetchall()
+    text = """
+👑 ALPHAN SPECIAL OFFERS 👑
+━━━━━━━━━━━━━━━━
 
-    if not items:
-        bot.send_message(m.chat.id,"❌ No items available")
-        return
+🟢 ৪ লাখ গ্লোরি – ৳750 টাকা
+🟢 ৬ লাখ গ্লোরি – ৳950 টাকা
 
-    text="👑 ALPHAN SPECIAL OFFERS 👑\n\n"
+🔶 ফুল গিল্ড ম্যাক্স ৭ প্যাকেজ – ৳1350 টাকা
+
+⭐ রিজিওন টপ ১০ প্যাকেজ – যোগাযোগ করুন
+
+⚡ ট্রায়াল প্যাকেজ (৪টি বোট ৮ ঘণ্টা) – ৳180 টাকা
+
+⚡ ৭ লেভেল ম্যাক্স গিল্ড বিক্রি – ৳1150 টাকা
+
+━━━━━━━━━━━━━━━━
+একটি প্যাকেজ সিলেক্ট করুন:
+"""
 
     kb = InlineKeyboardMarkup()
 
-    for i in items:
-
-        name=i[0]
-        price=i[1]
-
-        text += f"⚡ {name} – ৳{price}\n"
-
-        kb.add(InlineKeyboardButton(name,callback_data=name))
+    kb.add(InlineKeyboardButton("৪ লাখ গ্লোরি – ৳750",callback_data="p1"))
+    kb.add(InlineKeyboardButton("৬ লাখ গ্লোরি – ৳950",callback_data="p2"))
+    kb.add(InlineKeyboardButton("ফুল গিল্ড ম্যাক্স – ৳1350",callback_data="p3"))
+    kb.add(InlineKeyboardButton("ট্রায়াল প্যাকেজ – ৳180",callback_data="p4"))
+    kb.add(InlineKeyboardButton("৭ লেভেল ম্যাক্স গিল্ড – ৳1150",callback_data="p5"))
 
     bot.send_message(m.chat.id,text,reply_markup=kb)
 
 # ---------------- PACKAGE SELECT ----------------
 
-@bot.callback_query_handler(func=lambda c: not c.data.startswith(("approve","reject")))
+@bot.callback_query_handler(func=lambda c: c.data.startswith("p"))
 def package(c):
 
-    user_data[c.from_user.id]={}
-    user_data[c.from_user.id]["package"]=c.data
+    packages = {
+        "p1":"৪ লাখ গ্লোরি",
+        "p2":"৬ লাখ গ্লোরি",
+        "p3":"ফুল গিল্ড ম্যাক্স ৭ প্যাকেজ",
+        "p4":"ট্রায়াল প্যাকেজ",
+        "p5":"৭ লেভেল ম্যাক্স গিল্ড"
+    }
 
-    bot.send_message(c.message.chat.id,"Send Clan UID")
+    orders[c.from_user.id] = {}
+
+    orders[c.from_user.id]["package"] = packages[c.data]
+
+    bot.send_message(
+        c.message.chat.id,
+        "Send Clan UID"
+    )
 
 # ---------------- UID ----------------
 
-@bot.message_handler(func=lambda m: m.from_user.id in user_data and "uid" not in user_data[m.from_user.id])
+@bot.message_handler(func=lambda m: m.from_user.id in orders and "uid" not in orders[m.from_user.id])
 def uid(m):
 
-    user_data[m.from_user.id]["uid"]=m.text
+    orders[m.from_user.id]["uid"] = m.text
 
-    bot.send_message(m.chat.id,"Send WhatsApp number")
+    bot.send_message(
+        m.chat.id,
+        "Send WhatsApp number"
+    )
 
 # ---------------- WHATSAPP ----------------
 
-@bot.message_handler(func=lambda m: m.from_user.id in user_data and "whatsapp" not in user_data[m.from_user.id])
+@bot.message_handler(func=lambda m: m.from_user.id in orders and "whatsapp" not in orders[m.from_user.id])
 def whatsapp(m):
 
-    user_data[m.from_user.id]["whatsapp"]=m.text
+    orders[m.from_user.id]["whatsapp"] = m.text
 
     bot.send_message(
         m.chat.id,
@@ -135,30 +146,16 @@ Send payment screenshot
 @bot.message_handler(content_types=['photo'])
 def screenshot(m):
 
-    uid=m.from_user.id
+    uid = m.from_user.id
 
-    if uid not in user_data:
+    if uid not in orders:
         return
 
-    data=user_data[uid]
+    data = orders[uid]
 
-    order_id=str(uuid.uuid4())[:8]
+    order_id = str(uuid.uuid4())[:8]
 
-    cursor.execute(
-        "INSERT INTO orders VALUES(?,?,?,?,?,?)",
-        (
-            order_id,
-            uid,
-            data["package"],
-            data["uid"],
-            data["whatsapp"],
-            "pending"
-        )
-    )
-
-    conn.commit()
-
-    caption=f"""
+    caption = f"""
 🆕 NEW ORDER
 
 Order ID: {order_id}
@@ -168,11 +165,11 @@ Clan UID: {data['uid']}
 WhatsApp: {data['whatsapp']}
 """
 
-    kb=InlineKeyboardMarkup()
+    kb = InlineKeyboardMarkup()
 
     kb.add(
-        InlineKeyboardButton("✅ Approve",callback_data=f"approve_{order_id}_{uid}"),
-        InlineKeyboardButton("❌ Reject",callback_data=f"reject_{order_id}_{uid}")
+        InlineKeyboardButton("✅ Approve",callback_data=f"ok_{uid}"),
+        InlineKeyboardButton("❌ Reject",callback_data=f"no_{uid}")
     )
 
     bot.send_photo(
@@ -188,22 +185,20 @@ WhatsApp: {data['whatsapp']}
 ✅ Order Submitted Successfully
 
 অনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন।
+Admin খুব শীঘ্রই আপনার অর্ডার যাচাই করবে।
 """
 )
 
-    del user_data[uid]
+# ---------------- ADMIN ACTION ----------------
 
-# ---------------- ADMIN APPROVE / REJECT ----------------
-
-@bot.callback_query_handler(func=lambda c: c.data.startswith(("approve","reject")))
+@bot.callback_query_handler(func=lambda c: c.data.startswith(("ok","no")))
 def admin_action(c):
 
-    data=c.data.split("_")
+    action,user = c.data.split("_")
 
-    action=data[0]
-    user=int(data[2])
+    user = int(user)
 
-    if action=="approve":
+    if action == "ok":
 
         bot.send_message(
             user,
@@ -216,104 +211,6 @@ def admin_action(c):
             user,
             "❌ Order Rejected\n\nSupport এ যোগাযোগ করুন।"
         )
-
-# ---------------- ADMIN PANEL ----------------
-
-@bot.message_handler(commands=['admin'])
-def admin_panel(m):
-
-    if m.from_user.id != ADMIN_ID:
-        return
-
-    kb=ReplyKeyboardMarkup(resize_keyboard=True)
-
-    kb.add("📦 View Orders")
-    kb.add("➕ Add Item","✏️ Edit Item","❌ Delete Item")
-
-    bot.send_message(m.chat.id,"🛠 ADMIN PANEL",reply_markup=kb)
-
-# ---------------- VIEW ORDERS ----------------
-
-@bot.message_handler(func=lambda m:m.text=="📦 View Orders")
-def view_orders(m):
-
-    if m.from_user.id != ADMIN_ID:
-        return
-
-    cursor.execute("SELECT * FROM orders")
-    orders=cursor.fetchall()
-
-    if not orders:
-        bot.send_message(m.chat.id,"No orders")
-        return
-
-    for o in orders:
-
-        bot.send_message(
-            m.chat.id,
-f"""
-Order ID: {o[0]}
-Package: {o[2]}
-UID: {o[3]}
-WhatsApp: {o[4]}
-Status: {o[5]}
-"""
-)
-
-# ---------------- ADD ITEM ----------------
-
-@bot.message_handler(func=lambda m:m.text=="➕ Add Item")
-def add_item(m):
-
-    msg=bot.send_message(m.chat.id,"Send item name,price")
-
-    bot.register_next_step_handler(msg,save_item)
-
-def save_item(m):
-
-    name,price=m.text.split(",")
-
-    cursor.execute("INSERT INTO items VALUES(?,?)",(name,price))
-
-    conn.commit()
-
-    bot.send_message(m.chat.id,"✅ Item added")
-
-# ---------------- EDIT ITEM ----------------
-
-@bot.message_handler(func=lambda m:m.text=="✏️ Edit Item")
-def edit_item(m):
-
-    msg=bot.send_message(m.chat.id,"Send item name,newprice")
-
-    bot.register_next_step_handler(msg,update_item)
-
-def update_item(m):
-
-    name,price=m.text.split(",")
-
-    cursor.execute("UPDATE items SET price=? WHERE name=?",(price,name))
-
-    conn.commit()
-
-    bot.send_message(m.chat.id,"✅ Item updated")
-
-# ---------------- DELETE ITEM ----------------
-
-@bot.message_handler(func=lambda m:m.text=="❌ Delete Item")
-def delete_item(m):
-
-    msg=bot.send_message(m.chat.id,"Send item name")
-
-    bot.register_next_step_handler(msg,remove_item)
-
-def remove_item(m):
-
-    cursor.execute("DELETE FROM items WHERE name=?",(m.text,))
-
-    conn.commit()
-
-    bot.send_message(m.chat.id,"❌ Item deleted")
 
 # ---------------- STABLE POLLING ----------------
 
