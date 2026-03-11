@@ -295,4 +295,17 @@ def my_orders(message):
     bot.send_message(message.chat.id, text)
 
 
-bot.infinity_polling(skip_pending=True
+import time
+
+while True:
+    try:
+        print("Bot started...")
+        bot.infinity_polling(
+            timeout=60,
+            long_polling_timeout=30,
+            skip_pending=True
+        )
+    except Exception as e:
+        print("Bot crashed:", e)
+        print("Restarting in 10 seconds...")
+        time.sleep(10)
