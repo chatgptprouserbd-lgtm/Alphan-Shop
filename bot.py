@@ -1,35 +1,34 @@
 from flask import Flask
 import threading
 import os
+import telebot
+import uuid
+import sqlite3
+import time
+from telebot.types import *
+
+# ---------------- KEEP ALIVE ----------------
 
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot is running"
+    return "Bot running"
 
-def run_web():
+def run():
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
 
-def keep_alive():
-    t = threading.Thread(target=run_web)
-    t.start()
+threading.Thread(target=run).start()
 
-keep_alive()
-import telebot
-import uuid
-import sqlite3
-
-from telebot.types import ReplyKeyboardMarkup, KeyboardButton
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-import os
+# ---------------- BOT CONFIG ----------------
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 bot = telebot.TeleBot(TOKEN)
+
+# ---------------- DATABASE ----------------
 
 conn = sqlite3.connect("orders.db", check_same_thread=False)
 cursor = conn.cursor()
@@ -41,6 +40,7 @@ user_id INTEGER,
 package TEXT,
 uid TEXT,
 whatsapp TEXT,
+coupon TEXT,
 status TEXT
 )
 """)
@@ -49,41 +49,37 @@ conn.commit()
 
 user_step = {}
 
-# MAIN MENU
-def main_menu():
+# ---------------- MENU ----------------
 
-    menu = ReplyKeyboardMarkup(resize_keyboard=True)
+def menu():
 
-    menu.add("🛒 Shop Items", "📦 My Orders")
-    menu.add("📞 Customer Support", "📜 Order Rules")
-    menu.add("ℹ️ About Shop", "🔄 Restart Bot")
+    m = ReplyKeyboardMarkup(resize_keyboard=True)
 
-    return menu
+    m.add("🛒 Shop Items", "📦 My Orders")
+    m.add("📞 Customer Support", "📜 Order Rules")
+    m.add("ℹ️ About Shop", "🔄 Restart Bot")
 
+    return m
 
-# START
+# ---------------- START ----------------
+
 @bot.message_handler(commands=['start'])
 def start(message):
 
-    text = """
-👑 Welcome to ALPHAN GAMING SHOP
+    bot.send_message(
+        message.chat.id,
+        "👑 Welcome to ALPHAN GAMING SHOP\n\nGlory Bot Sale",
+        reply_markup=menu()
+    )
 
-Glory Bot Sale
+# ---------------- RESTART ----------------
 
-Select an option from the menu.
-"""
-
-    bot.send_message(message.chat.id, text, reply_markup=main_menu())
-
-
-# RESTART
 @bot.message_handler(func=lambda m: m.text == "🔄 Restart Bot")
 def restart(message):
-
     start(message)
 
+# ---------------- ABOUT ----------------
 
-# ABOUT SHOP
 @bot.message_handler(func=lambda m: m.text == "ℹ️ About Shop")
 def about(message):
 
@@ -92,119 +88,164 @@ def about(message):
 
 🎮 Professional Glory Bot Service
 
-• Glory Bot Packages
-• Guild Boost Services
-• Trial Packages
-
 ⚡ Fast Delivery
 ⚡ Trusted Service
+⚡ 24/7 Support
 
-📞 WhatsApp Support
+📞 WhatsApp:
 01607254046
 """
 
     bot.send_message(message.chat.id, text)
 
+# ---------------- RULES ----------------
 
-# ORDER RULES
 @bot.message_handler(func=lambda m: m.text == "📜 Order Rules")
 def rules(message):
 
     text = """
 📜 ORDER RULES
 
-1️⃣ Guild অবশ্যই Auto Approval ON করে রাখবেন
+• Guild অবশ্যই Auto Approval ON রাখবেন
 
-2️⃣ অবশ্যই সঠিক Guild / Clan UID দিবেন
+• অবশ্যই সঠিক Guild / Clan UID দিবেন
 
-3️⃣ Payment করার পরে Original Screenshot দিবেন
+• Payment করার পরে Original Screenshot দিবেন
 
-4️⃣ Payment করার সময় Only Send Money ব্যবহার করবেন
-
-⚠️ Fake screenshot দিলে order reject করা হবে
+• Payment করার সময় Only Send Money ব্যবহার করবেন
 """
 
     bot.send_message(message.chat.id, text)
 
+# ---------------- SUPPORT ----------------
 
-# SUPPORT
 @bot.message_handler(func=lambda m: m.text == "📞 Customer Support")
 def support(message):
 
     bot.send_message(
         message.chat.id,
-        "📞 WhatsApp Support\n01607254046"
+        "WhatsApp Support:\n01607254046"
     )
 
+# ---------------- SHOP ----------------
 
-# SHOP
 @bot.message_handler(func=lambda m: m.text == "🛒 Shop Items")
 def shop(message):
 
     text = """
 👑 ALPHAN SPECIAL OFFERS 👑
+━━━━━━━━━━━━━━━━
 
-🟢 ৪ লাখ গ্লোরি – ৳750
-🟢 ৬ লাখ গ্লোরি – ৳950
-🔶 ফুল গিল্ড ম্যাক্স ৭ – ৳1350
-⚡ ট্রায়াল প্যাকেজ – ৳180
-⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳1150
+🟢 ৪ লাখ গ্লোরি – ৳750 টাকা
+🟢 ৬ লাখ গ্লোরি – ৳950 টাকা
 
-━━━━━━━━━━━━━━
+🔶 ফুল গিল্ড ম্যাক্স ৭ প্যাকেজ – ৳1350 টাকা
+
+🌟 রিজিওন টপ ১০ প্যাকেজ – যোগাযোগ করুন
+
+⚡ ট্রায়াল প্যাকেজ (৪টি বোট ৮ ঘন্টা) – ৳180 টাকা
+
+⚡ ৭ লেভেল ম্যাক্স গিল্ড বিক্রি – ৳1150 টাকা
+
+━━━━━━━━━━━━━━━━
 একটি প্যাকেজ সিলেক্ট করুন:
 """
 
-    markup = InlineKeyboardMarkup()
+    kb = InlineKeyboardMarkup()
 
-    markup.add(
-        InlineKeyboardButton("৪ লাখ গ্লোরি", callback_data="pkg_4l"),
-        InlineKeyboardButton("৬ লাখ গ্লোরি", callback_data="pkg_6l")
+    kb.add(
+        InlineKeyboardButton("৪ লাখ গ্লোরি", callback_data="p1"),
+        InlineKeyboardButton("৬ লাখ গ্লোরি", callback_data="p2")
     )
 
-    markup.add(
-        InlineKeyboardButton("ফুল গিল্ড ম্যাক্স ৭", callback_data="pkg_guild7")
+    kb.add(
+        InlineKeyboardButton("ফুল গিল্ড ম্যাক্স", callback_data="p3")
     )
 
-    markup.add(
-        InlineKeyboardButton("ট্রায়াল প্যাকেজ", callback_data="pkg_trial")
+    kb.add(
+        InlineKeyboardButton("ট্রায়াল প্যাকেজ", callback_data="p4")
     )
 
-    markup.add(
-        InlineKeyboardButton("৭ লেভেল গিল্ড", callback_data="pkg_guildlvl7")
+    kb.add(
+        InlineKeyboardButton("৭ লেভেল গিল্ড", callback_data="p5")
     )
 
-    bot.send_message(message.chat.id, text, reply_markup=markup)
+    bot.send_message(message.chat.id, text, reply_markup=kb)
 
+# ---------------- PACKAGE ----------------
 
-# PACKAGE SELECT
-@bot.callback_query_handler(func=lambda call: call.data.startswith("pkg"))
-def select_package(call):
+@bot.callback_query_handler(func=lambda c: c.data.startswith("p"))
+def package(c):
 
-    package = call.data.replace("pkg_", "")
-
-    user_step[call.from_user.id] = {
-        "package": package
+    packages = {
+        "p1": "৪ লাখ গ্লোরি",
+        "p2": "৬ লাখ গ্লোরি",
+        "p3": "ফুল গিল্ড ম্যাক্স",
+        "p4": "ট্রায়াল প্যাকেজ",
+        "p5": "৭ লেভেল গিল্ড"
     }
 
-    bot.send_message(call.message.chat.id, "Send Clan UID")
+    user_step[c.from_user.id] = {
+        "package": packages[c.data]
+    }
 
+    bot.send_message(c.message.chat.id, "Send Clan UID")
 
-# UID
+# ---------------- UID ----------------
+
 @bot.message_handler(func=lambda m: m.from_user.id in user_step and "uid" not in user_step[m.from_user.id])
-def get_uid(message):
+def uid(message):
 
     user_step[message.from_user.id]["uid"] = message.text
 
     bot.send_message(message.chat.id, "Send WhatsApp number")
 
+# ---------------- WHATSAPP ----------------
 
-# WHATSAPP
 @bot.message_handler(func=lambda m: m.from_user.id in user_step and "whatsapp" not in user_step[m.from_user.id])
-def get_whatsapp(message):
+def whatsapp(message):
 
     user_step[message.from_user.id]["whatsapp"] = message.text
 
-    payment_text = """
+    kb = InlineKeyboardMarkup()
+
+    kb.add(
+        InlineKeyboardButton("🎟 Enter Coupon", callback_data="coupon")
+    )
+
+    kb.add(
+        InlineKeyboardButton("❌ Don't have coupon", callback_data="nocoupon")
+    )
+
+    bot.send_message(
+        message.chat.id,
+        "Do you have a coupon?",
+        reply_markup=kb
+    )
+
+# ---------------- COUPON ----------------
+
+@bot.callback_query_handler(func=lambda c: c.data in ["coupon","nocoupon"])
+def coupon(c):
+
+    if c.data == "nocoupon":
+
+        user_step[c.from_user.id]["coupon"] = "NONE"
+
+        payment(c.message)
+
+    else:
+
+        bot.send_message(
+            c.message.chat.id,
+            "Send coupon code"
+        )
+
+# ---------------- PAYMENT ----------------
+
+def payment(message):
+
+    text = """
 💳 PAYMENT METHOD
 
 bKash: 01861316505
@@ -215,12 +256,12 @@ Nagad: 01861316505
 Payment করার পরে screenshot পাঠান।
 """
 
-    bot.send_message(message.chat.id, payment_text)
+    bot.send_message(message.chat.id, text)
 
+# ---------------- SCREENSHOT ----------------
 
-# PAYMENT SCREENSHOT
 @bot.message_handler(content_types=['photo'])
-def payment(message):
+def screenshot(message):
 
     uid = message.from_user.id
 
@@ -232,13 +273,14 @@ def payment(message):
     order_id = str(uuid.uuid4())[:8]
 
     cursor.execute(
-        "INSERT INTO orders VALUES(?,?,?,?,?,?)",
+        "INSERT INTO orders VALUES(?,?,?,?,?,?,?)",
         (
             order_id,
             uid,
             data["package"],
             data["uid"],
             data["whatsapp"],
+            data.get("coupon","NONE"),
             "pending"
         )
     )
@@ -253,59 +295,81 @@ Order ID: {order_id}
 Package: {data['package']}
 Clan UID: {data['uid']}
 WhatsApp: {data['whatsapp']}
+Coupon: {data.get("coupon","NONE")}
 """
+
+    kb = InlineKeyboardMarkup()
+
+    kb.add(
+        InlineKeyboardButton("✅ Approve", callback_data=f"ok_{order_id}_{uid}"),
+        InlineKeyboardButton("❌ Reject", callback_data=f"no_{order_id}_{uid}")
+    )
 
     bot.send_photo(
         ADMIN_ID,
         message.photo[-1].file_id,
-        caption=caption
+        caption=caption,
+        reply_markup=kb
     )
 
     bot.send_message(
         message.chat.id,
-        f"✅ Order submitted\nOrder ID: {order_id}"
+        "✅ Order Submitted Successfully\n\nঅনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন।"
     )
 
     del user_step[uid]
 
+# ---------------- ADMIN ACTION ----------------
 
-# MY ORDERS
-@bot.message_handler(func=lambda m: m.text == "📦 My Orders")
-def my_orders(message):
+@bot.callback_query_handler(func=lambda c: c.data.startswith(("ok","no")))
+def admin_action(c):
 
-    cursor.execute(
-        "SELECT order_id,status FROM orders WHERE user_id=?",
-        (message.from_user.id,)
-    )
+    data = c.data.split("_")
 
-    data = cursor.fetchall()
+    action = data[0]
+    order = data[1]
+    user = int(data[2])
 
-    if not data:
+    if action == "ok":
 
-        bot.send_message(message.chat.id, "No orders found")
+        bot.send_message(
+            user,
+            "✅ Order Approved\n\nআপনার অর্ডার গ্রহণ করা হয়েছে।"
+        )
 
-        return
+        bot.edit_message_caption(
+            "✅ APPROVED",
+            c.message.chat.id,
+            c.message.message_id
+        )
 
-    text = "📦 YOUR ORDERS\n\n"
+    else:
 
-    for o in data:
+        bot.send_message(
+            user,
+            "❌ Order Rejected\n\nSupport এ যোগাযোগ করুন।"
+        )
 
-        text += f"{o[0]} - {o[1]}\n"
+        bot.edit_message_caption(
+            "❌ REJECTED",
+            c.message.chat.id,
+            c.message.message_id
+        )
 
-    bot.send_message(message.chat.id, text)
-
-
-import time
+# ---------------- STABLE POLLING ----------------
 
 while True:
+
     try:
-        print("Bot started...")
+
         bot.infinity_polling(
             timeout=60,
             long_polling_timeout=30,
             skip_pending=True
         )
+
     except Exception as e:
+
         print("Bot crashed:", e)
-        print("Restarting in 10 seconds...")
+
         time.sleep(10)
