@@ -13,11 +13,11 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot running"
+    return "Bot is running"
 
 def run():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT",8080))
+    app.run(host="0.0.0.0",port=port)
 
 threading.Thread(target=run).start()
 
@@ -30,30 +30,15 @@ bot = telebot.TeleBot(TOKEN)
 
 # ---------------- DATABASE ----------------
 
-conn = sqlite3.connect("shop.db", check_same_thread=False)
+conn = sqlite3.connect("shop.db",check_same_thread=False)
 cursor = conn.cursor()
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS items(
-name TEXT,
-price TEXT
-)
-""")
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS orders(
-order_id TEXT,
-user_id INTEGER,
-package TEXT,
-uid TEXT,
-whatsapp TEXT,
-status TEXT
-)
-""")
+cursor.execute("CREATE TABLE IF NOT EXISTS items(name TEXT,price TEXT)")
+cursor.execute("CREATE TABLE IF NOT EXISTS orders(order_id TEXT,user_id INTEGER,package TEXT,uid TEXT,whatsapp TEXT,status TEXT)")
 
 conn.commit()
 
-user_step = {}
+user_data = {}
 
 # ---------------- MENU ----------------
 
@@ -61,19 +46,19 @@ def main_menu():
 
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
 
-    kb.add("🛒 Shop Items", "📦 My Orders")
-    kb.add("📞 Customer Support", "📜 Order Rules")
-    kb.add("ℹ️ About Shop", "🔄 Restart Bot")
+    kb.add("🛒 Shop Items","📦 My Orders")
+    kb.add("📞 Customer Support","📜 Order Rules")
+    kb.add("ℹ️ About Shop","🔄 Restart Bot")
 
     return kb
 
 # ---------------- START ----------------
 
 @bot.message_handler(commands=['start'])
-def start(message):
+def start(m):
 
     bot.send_message(
-        message.chat.id,
+        m.chat.id,
         "👑 Welcome to ALPHAN GAMING SHOP\n\nGlory Bot Sale",
         reply_markup=main_menu()
     )
@@ -81,59 +66,58 @@ def start(message):
 # ---------------- SHOP ----------------
 
 @bot.message_handler(func=lambda m: m.text=="🛒 Shop Items")
-def shop(message):
+def shop(m):
 
     cursor.execute("SELECT * FROM items")
     items = cursor.fetchall()
 
     if not items:
-
-        bot.send_message(message.chat.id,"❌ No items available")
+        bot.send_message(m.chat.id,"❌ No items available")
         return
 
     text="👑 ALPHAN SPECIAL OFFERS 👑\n\n"
 
     kb = InlineKeyboardMarkup()
 
-    for item in items:
+    for i in items:
 
-        name=item[0]
-        price=item[1]
+        name=i[0]
+        price=i[1]
 
         text += f"⚡ {name} – ৳{price}\n"
 
         kb.add(InlineKeyboardButton(name,callback_data=name))
 
-    bot.send_message(message.chat.id,text,reply_markup=kb)
+    bot.send_message(m.chat.id,text,reply_markup=kb)
 
 # ---------------- PACKAGE SELECT ----------------
 
-@bot.callback_query_handler(func=lambda c: True)
+@bot.callback_query_handler(func=lambda c: not c.data.startswith(("approve","reject")))
 def package(c):
 
-    user_step[c.from_user.id]={}
-    user_step[c.from_user.id]["package"]=c.data
+    user_data[c.from_user.id]={}
+    user_data[c.from_user.id]["package"]=c.data
 
     bot.send_message(c.message.chat.id,"Send Clan UID")
 
 # ---------------- UID ----------------
 
-@bot.message_handler(func=lambda m: m.from_user.id in user_step and "uid" not in user_step[m.from_user.id])
-def uid(message):
+@bot.message_handler(func=lambda m: m.from_user.id in user_data and "uid" not in user_data[m.from_user.id])
+def uid(m):
 
-    user_step[message.from_user.id]["uid"]=message.text
+    user_data[m.from_user.id]["uid"]=m.text
 
-    bot.send_message(message.chat.id,"Send WhatsApp number")
+    bot.send_message(m.chat.id,"Send WhatsApp number")
 
 # ---------------- WHATSAPP ----------------
 
-@bot.message_handler(func=lambda m: m.from_user.id in user_step and "whatsapp" not in user_step[m.from_user.id])
-def whatsapp(message):
+@bot.message_handler(func=lambda m: m.from_user.id in user_data and "whatsapp" not in user_data[m.from_user.id])
+def whatsapp(m):
 
-    user_step[message.from_user.id]["whatsapp"]=message.text
+    user_data[m.from_user.id]["whatsapp"]=m.text
 
     bot.send_message(
-        message.chat.id,
+        m.chat.id,
 """
 💳 PAYMENT METHOD
 
@@ -149,14 +133,14 @@ Send payment screenshot
 # ---------------- SCREENSHOT ----------------
 
 @bot.message_handler(content_types=['photo'])
-def screenshot(message):
+def screenshot(m):
 
-    uid=message.from_user.id
+    uid=m.from_user.id
 
-    if uid not in user_step:
+    if uid not in user_data:
         return
 
-    data=user_step[uid]
+    data=user_data[uid]
 
     order_id=str(uuid.uuid4())[:8]
 
@@ -193,13 +177,13 @@ WhatsApp: {data['whatsapp']}
 
     bot.send_photo(
         ADMIN_ID,
-        message.photo[-1].file_id,
+        m.photo[-1].file_id,
         caption=caption,
         reply_markup=kb
     )
 
     bot.send_message(
-        message.chat.id,
+        m.chat.id,
 """
 ✅ Order Submitted Successfully
 
@@ -207,9 +191,9 @@ WhatsApp: {data['whatsapp']}
 """
 )
 
-    del user_step[uid]
+    del user_data[uid]
 
-# ---------------- ADMIN ACTION ----------------
+# ---------------- ADMIN APPROVE / REJECT ----------------
 
 @bot.callback_query_handler(func=lambda c: c.data.startswith(("approve","reject")))
 def admin_action(c):
@@ -217,125 +201,119 @@ def admin_action(c):
     data=c.data.split("_")
 
     action=data[0]
-    order=data[1]
     user=int(data[2])
 
     if action=="approve":
 
-        bot.send_message(user,"✅ Order Approved")
+        bot.send_message(
+            user,
+            "✅ Order Approved\n\nআপনার অর্ডার গ্রহণ করা হয়েছে।"
+        )
 
     else:
 
-        bot.send_message(user,"❌ Order Rejected")
+        bot.send_message(
+            user,
+            "❌ Order Rejected\n\nSupport এ যোগাযোগ করুন।"
+        )
 
 # ---------------- ADMIN PANEL ----------------
 
 @bot.message_handler(commands=['admin'])
-def admin(message):
+def admin_panel(m):
 
-    if message.from_user.id != ADMIN_ID:
+    if m.from_user.id != ADMIN_ID:
         return
 
-    kb = ReplyKeyboardMarkup(resize_keyboard=True)
+    kb=ReplyKeyboardMarkup(resize_keyboard=True)
 
     kb.add("📦 View Orders")
-    kb.add("➕ Add Item")
-    kb.add("✏️ Edit Item")
-    kb.add("❌ Delete Item")
+    kb.add("➕ Add Item","✏️ Edit Item","❌ Delete Item")
 
-    bot.send_message(message.chat.id,"🛠 ADMIN PANEL",reply_markup=kb)
+    bot.send_message(m.chat.id,"🛠 ADMIN PANEL",reply_markup=kb)
 
 # ---------------- VIEW ORDERS ----------------
 
-@bot.message_handler(func=lambda m: m.text=="📦 View Orders")
-def view_orders(message):
+@bot.message_handler(func=lambda m:m.text=="📦 View Orders")
+def view_orders(m):
 
-    if message.from_user.id != ADMIN_ID:
+    if m.from_user.id != ADMIN_ID:
         return
 
     cursor.execute("SELECT * FROM orders")
-    orders = cursor.fetchall()
+    orders=cursor.fetchall()
 
     if not orders:
-
-        bot.send_message(message.chat.id,"No orders")
+        bot.send_message(m.chat.id,"No orders")
         return
 
-    for order in orders:
+    for o in orders:
 
-        text=f"""
-Order ID: {order[0]}
-Package: {order[2]}
-UID: {order[3]}
-WhatsApp: {order[4]}
-Status: {order[5]}
+        bot.send_message(
+            m.chat.id,
+f"""
+Order ID: {o[0]}
+Package: {o[2]}
+UID: {o[3]}
+WhatsApp: {o[4]}
+Status: {o[5]}
 """
-
-        bot.send_message(message.chat.id,text)
+)
 
 # ---------------- ADD ITEM ----------------
 
-@bot.message_handler(func=lambda m: m.text=="➕ Add Item")
-def add_item(message):
+@bot.message_handler(func=lambda m:m.text=="➕ Add Item")
+def add_item(m):
 
-    if message.from_user.id != ADMIN_ID:
-        return
-
-    msg=bot.send_message(message.chat.id,"Send item name,price")
+    msg=bot.send_message(m.chat.id,"Send item name,price")
 
     bot.register_next_step_handler(msg,save_item)
 
-def save_item(message):
+def save_item(m):
 
-    name,price=message.text.split(",")
+    name,price=m.text.split(",")
 
     cursor.execute("INSERT INTO items VALUES(?,?)",(name,price))
 
     conn.commit()
 
-    bot.send_message(message.chat.id,"✅ Item added")
+    bot.send_message(m.chat.id,"✅ Item added")
 
 # ---------------- EDIT ITEM ----------------
 
-@bot.message_handler(func=lambda m: m.text=="✏️ Edit Item")
-def edit_item(message):
+@bot.message_handler(func=lambda m:m.text=="✏️ Edit Item")
+def edit_item(m):
 
-    msg=bot.send_message(message.chat.id,"Send item name,newprice")
+    msg=bot.send_message(m.chat.id,"Send item name,newprice")
 
     bot.register_next_step_handler(msg,update_item)
 
-def update_item(message):
+def update_item(m):
 
-    name,price=message.text.split(",")
+    name,price=m.text.split(",")
 
-    cursor.execute(
-        "UPDATE items SET price=? WHERE name=?",
-        (price,name)
-    )
+    cursor.execute("UPDATE items SET price=? WHERE name=?",(price,name))
 
     conn.commit()
 
-    bot.send_message(message.chat.id,"✅ Item updated")
+    bot.send_message(m.chat.id,"✅ Item updated")
 
 # ---------------- DELETE ITEM ----------------
 
-@bot.message_handler(func=lambda m: m.text=="❌ Delete Item")
-def delete_item(message):
+@bot.message_handler(func=lambda m:m.text=="❌ Delete Item")
+def delete_item(m):
 
-    msg=bot.send_message(message.chat.id,"Send item name")
+    msg=bot.send_message(m.chat.id,"Send item name")
 
     bot.register_next_step_handler(msg,remove_item)
 
-def remove_item(message):
+def remove_item(m):
 
-    cursor.execute(
-        "DELETE FROM items WHERE name=?",
-        (message.text,)
-    )
+    cursor.execute("DELETE FROM items WHERE name=?",(m.text,))
 
     conn.commit()
 
-    bot.send_message(message.chat.id,"❌ Item deleted")
+    bot.send_message(m.chat.id,"❌ Item deleted")
 
 # ---------------- STABLE POLLING ----------------
 
