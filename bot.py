@@ -127,6 +127,33 @@ def support(message):
         "WhatsApp Support:\n01607254046"
     )
 
+@bot.message_handler(commands=['admin'])
+def admin_panel(message):
+
+    if message.from_user.id != ADMIN_ID:
+        bot.send_message(message.chat.id, "❌ You are not admin")
+        return
+
+    kb = InlineKeyboardMarkup()
+
+    kb.add(
+        InlineKeyboardButton("📦 View Orders", callback_data="view_orders")
+    )
+
+    kb.add(
+        InlineKeyboardButton("🎟 Generate Coupon", callback_data="gen_coupon")
+    )
+
+    kb.add(
+        InlineKeyboardButton("📢 Send Notice", callback_data="notice")
+    )
+
+    bot.send_message(
+        message.chat.id,
+        "🛠 ADMIN PANEL",
+        reply_markup=kb
+    )
+
 # ---------------- SHOP ----------------
 
 @bot.message_handler(func=lambda m: m.text == "🛒 Shop Items")
