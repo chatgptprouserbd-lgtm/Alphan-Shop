@@ -19,7 +19,7 @@ keep_alive()
 
 def main_menu():
 
-    menu = ReplyKeyboardMarkup(resize_keyboard=True)
+    menu=ReplyKeyboardMarkup(resize_keyboard=True)
 
     menu.add(
         KeyboardButton("🛒 Shop Items"),
@@ -48,11 +48,7 @@ Hey! Welcome to ALPHAN GAMING SHOP
 Glory Bot Sale
 """
 
-    bot.send_message(
-        message.chat.id,
-        text,
-        reply_markup=main_menu()
-    )
+    bot.send_message(message.chat.id,text,reply_markup=main_menu())
 
 
 @bot.message_handler(func=lambda m:m.text=="🛒 Shop Items")
@@ -60,7 +56,7 @@ def shop(message):
 
     bot.send_message(
         message.chat.id,
-        "Shop Items",
+        "👑 ALPHAN SPECIAL OFFERS 👑",
         reply_markup=shop_menu()
     )
 
@@ -145,15 +141,98 @@ def payment(message):
 
     add_order(order)
 
+    caption=f"""
+🆕 NEW ORDER
+
+Order ID: {order_id}
+
+Clan UID: {data['uid']}
+
+Whatsapp: {data['whatsapp']}
+
+Package: {data['item']}
+
+Coupon: {data['coupon']}
+"""
+
+    markup=InlineKeyboardMarkup()
+
+    markup.add(
+        InlineKeyboardButton("✅ Approve",callback_data=f"approve_{order_id}"),
+        InlineKeyboardButton("❌ Reject",callback_data=f"reject_{order_id}")
+    )
+
     bot.send_photo(
         ADMIN_ID,
         message.photo[-1].file_id,
-        caption=f"New Order\nID:{order_id}"
+        caption=caption,
+        reply_markup=markup
     )
 
-    bot.send_message(message.chat.id,f"Order submitted\nID:{order_id}")
+    bot.send_message(
+        message.chat.id,
+        f"✅ Order submitted\nOrder ID: {order_id}"
+    )
 
     del user_steps[uid]
+
+
+@bot.callback_query_handler(func=lambda call:call.data.startswith("approve_"))
+def approve(call):
+
+    order_id=call.data.split("_")[1]
+
+    orders=get_orders()
+
+    for o in orders:
+
+        if o[0]==order_id:
+
+            user_id=o[1]
+
+            bot.send_message(
+                user_id,
+                f"""
+🎉 Your order approved!
+
+Order ID: {order_id}
+
+ALPHAN GAMING SHOP
+"""
+            )
+
+            break
+
+    bot.answer_callback_query(call.id,"Order Approved")
+
+
+@bot.callback_query_handler(func=lambda call:call.data.startswith("reject_"))
+def reject(call):
+
+    order_id=call.data.split("_")[1]
+
+    orders=get_orders()
+
+    for o in orders:
+
+        if o[0]==order_id:
+
+            user_id=o[1]
+
+            bot.send_message(
+                user_id,
+                f"""
+❌ Your order rejected
+
+Order ID: {order_id}
+
+Contact support if needed.
+"""
+            )
+
+            break
+
+    bot.answer_callback_query(call.id,"Order Rejected")
 
 
 @bot.message_handler(commands=['admin'])
@@ -164,13 +243,13 @@ def admin(message):
 
     bot.send_message(
         message.chat.id,
-        "Admin Panel",
+        "👑 Admin Panel",
         reply_markup=admin_panel()
     )
 
 
 @bot.callback_query_handler(func=lambda call:call.data=="admin_orders")
-def orders(call):
+def view_orders(call):
 
     data=get_orders()
 
@@ -179,15 +258,15 @@ def orders(call):
     for o in data:
 
         text+=f"""
-{o[0]}
-UID:{o[2]}
-Item:{o[4]}
-Status:{o[6]}
+Order ID: {o[0]}
+UID: {o[2]}
+Item: {o[4]}
+Status: {o[6]}
+
 """
 
     if text=="":
-
-        text="No orders"
+        text="No orders found"
 
     bot.send_message(call.message.chat.id,text)
 
@@ -200,9 +279,10 @@ def stats(call):
     bot.send_message(
         call.message.chat.id,
         f"""
-Sales Stats
+📊 SALES STATS
 
 Total Orders: {total}
+
 Approved Orders: {approved}
 """
     )
