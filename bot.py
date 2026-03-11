@@ -8,10 +8,13 @@ from config import TOKEN,ADMIN_ID
 from database import *
 from shop import shop_menu
 from admin import admin_panel
+from keep_alive import keep_alive
 
 bot = telebot.TeleBot(TOKEN)
 
 user_steps={}
+
+keep_alive()
 
 
 def main_menu():
@@ -65,9 +68,9 @@ def shop(message):
 @bot.callback_query_handler(func=lambda call:call.data.startswith("order_"))
 def order(call):
 
-    item_id=call.data.split("_")[1]
+    item=call.data.split("_")[1]
 
-    user_steps[call.from_user.id]={"item":item_id}
+    user_steps[call.from_user.id]={"item":item}
 
     bot.send_message(call.message.chat.id,"Send Clan UID")
 
@@ -85,7 +88,7 @@ def whatsapp(message):
 
     user_steps[message.from_user.id]["whatsapp"]=message.text
 
-    bot.send_message(message.chat.id,"Send coupon or SKIP")
+    bot.send_message(message.chat.id,"Send coupon code or SKIP")
 
 
 @bot.message_handler(func=lambda m:m.from_user.id in user_steps and "coupon" not in user_steps[m.from_user.id])
@@ -102,8 +105,16 @@ def coupon(message):
         c=get_coupon(code)
 
         if c:
+
             user_steps[message.from_user.id]["coupon"]=code
+
+            bot.send_message(
+                message.chat.id,
+                f"Coupon applied {c[1]}৳ discount"
+            )
+
         else:
+
             bot.send_message(message.chat.id,"Invalid coupon")
             return
 
@@ -134,31 +145,13 @@ def payment(message):
 
     add_order(order)
 
-    caption=f"""
-NEW ORDER
-
-Order ID: {order_id}
-Clan UID: {data['uid']}
-Whatsapp: {data['whatsapp']}
-Item: {data['item']}
-Coupon: {data['coupon']}
-"""
-
-    markup=InlineKeyboardMarkup()
-
-    markup.add(
-        InlineKeyboardButton("Approve",callback_data=f"approve_{order_id}"),
-        InlineKeyboardButton("Reject",callback_data=f"reject_{order_id}")
-    )
-
     bot.send_photo(
         ADMIN_ID,
         message.photo[-1].file_id,
-        caption=caption,
-        reply_markup=markup
+        caption=f"New Order\nID:{order_id}"
     )
 
-    bot.send_message(message.chat.id,f"Order submitted\nID: {order_id}")
+    bot.send_message(message.chat.id,f"Order submitted\nID:{order_id}")
 
     del user_steps[uid]
 
@@ -173,6 +166,45 @@ def admin(message):
         message.chat.id,
         "Admin Panel",
         reply_markup=admin_panel()
+    )
+
+
+@bot.callback_query_handler(func=lambda call:call.data=="admin_orders")
+def orders(call):
+
+    data=get_orders()
+
+    text=""
+
+    for o in data:
+
+        text+=f"""
+{o[0]}
+UID:{o[2]}
+Item:{o[4]}
+Status:{o[6]}
+"""
+
+    if text=="":
+
+        text="No orders"
+
+    bot.send_message(call.message.chat.id,text)
+
+
+@bot.callback_query_handler(func=lambda call:call.data=="admin_stats")
+def stats(call):
+
+    total,approved=sales_stats()
+
+    bot.send_message(
+        call.message.chat.id,
+        f"""
+Sales Stats
+
+Total Orders: {total}
+Approved Orders: {approved}
+"""
     )
 
 
