@@ -137,7 +137,18 @@ def get_number(message):
     order_data[message.from_user.id]["number"] = message.text
     user_step[message.from_user.id] = "ss"
 
-    bot.send_message(message.chat.id,"Send Payment Screenshot")
+    bot.send_message(
+    message.chat.id,
+"""💳 Payment Number
+
+Bkash / Nagad / Rocket
+
+📱 01861316505
+
+⚠️ Only Send Money
+
+Payment করার পরে screenshot দিন."""
+)
 
 # ---------- SCREENSHOT ----------
 
