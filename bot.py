@@ -299,3 +299,12 @@ def restart(message):
 # ---------------- RUN ----------------
 
 bot.infinity_polling()
+
+import time
+
+while True:
+    try:
+        bot.infinity_polling(skip_pending=True)
+    except Exception as e:
+        print(e)
+        time.sleep(5)
