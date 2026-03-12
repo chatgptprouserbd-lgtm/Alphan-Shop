@@ -1,14 +1,39 @@
+# ---------- KEEP ALIVE (Render Fix) ----------
+
+from flask import Flask
+import threading
+import os
+import time
 import telebot
 from telebot.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 import sqlite3
 import uuid
-import os
 import sys
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot running"
+
+def run():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
+
+def keep_alive():
+    t = threading.Thread(target=run)
+    t.start()
+
+keep_alive()
+
+# ---------- BOT CONFIG ----------
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 bot = telebot.TeleBot(TOKEN)
+
+# ---------- DATABASE ----------
 
 conn = sqlite3.connect("shop.db", check_same_thread=False)
 cursor = conn.cursor()
@@ -20,7 +45,8 @@ conn.commit()
 user_step = {}
 order_data = {}
 
-# package names
+# ---------- PACKAGE NAMES ----------
+
 packages = {
 "4l":"🟢 ৪ লাখ গ্লোরি – ৳750",
 "6l":"🟢 ৬ লাখ গ্লোরি – ৳950",
@@ -29,7 +55,7 @@ packages = {
 "lvl7":"⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳1150"
 }
 
-# ---------------- START ----------------
+# ---------- START ----------
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -49,7 +75,7 @@ def start(message):
         reply_markup=kb
     )
 
-# ---------------- SHOP ----------------
+# ---------- SHOP ----------
 
 @bot.message_handler(func=lambda m: m.text=="🛒 Shop Items")
 def shop(message):
@@ -83,7 +109,7 @@ def shop(message):
 
     bot.send_message(message.chat.id,text,reply_markup=kb)
 
-# ---------------- PACKAGE SELECT ----------------
+# ---------- PACKAGE SELECT ----------
 
 @bot.callback_query_handler(func=lambda call: call.data in packages)
 def package(call):
@@ -93,7 +119,7 @@ def package(call):
 
     bot.send_message(call.message.chat.id,"Send Clan UID")
 
-# ---------------- UID ----------------
+# ---------- UID ----------
 
 @bot.message_handler(func=lambda m: user_step.get(m.from_user.id)=="uid")
 def get_uid(message):
@@ -103,7 +129,7 @@ def get_uid(message):
 
     bot.send_message(message.chat.id,"Send WhatsApp Number")
 
-# ---------------- NUMBER ----------------
+# ---------- NUMBER ----------
 
 @bot.message_handler(func=lambda m: user_step.get(m.from_user.id)=="number")
 def get_number(message):
@@ -113,7 +139,7 @@ def get_number(message):
 
     bot.send_message(message.chat.id,"Send Payment Screenshot")
 
-# ---------------- SCREENSHOT ----------------
+# ---------- SCREENSHOT ----------
 
 @bot.message_handler(content_types=['photo'])
 def screenshot(message):
@@ -153,7 +179,7 @@ WhatsApp: {data['number']}
 
     user_step[message.from_user.id]=None
 
-# ---------------- APPROVE ----------------
+# ---------- APPROVE ----------
 
 @bot.callback_query_handler(func=lambda c:c.data.startswith("approve"))
 def approve(call):
@@ -174,7 +200,7 @@ def approve(call):
 
     bot.send_message(user,"✅ Order Approved")
 
-# ---------------- REJECT ----------------
+# ---------- REJECT ----------
 
 @bot.callback_query_handler(func=lambda c:c.data.startswith("reject"))
 def reject(call):
@@ -195,7 +221,7 @@ def reject(call):
 
     bot.send_message(user,"❌ Order Rejected")
 
-# ---------------- MY ORDERS ----------------
+# ---------- MY ORDERS ----------
 
 @bot.message_handler(func=lambda m: m.text=="📦 My Orders")
 def my_orders(message):
@@ -215,7 +241,7 @@ def my_orders(message):
 
     for o in orders:
 
-        status = "⏳ Pending"
+        status="⏳ Pending"
 
         if o[2]=="approved":
             status="✅ Approved"
@@ -227,7 +253,34 @@ def my_orders(message):
 
     bot.send_message(message.chat.id,text)
 
-# ---------------- NOTICE ----------------
+# ---------- USER RESTART ----------
+
+@bot.message_handler(func=lambda m:m.text=="🔄 Restart Bot")
+def user_restart(message):
+
+    if message.from_user.id in user_step:
+        user_step.pop(message.from_user.id)
+
+    if message.from_user.id in order_data:
+        order_data.pop(message.from_user.id)
+
+    bot.send_message(message.chat.id,"🔄 Bot restarted\n\nPlease start again.")
+
+    start(message)
+
+# ---------- ADMIN RESTART ----------
+
+@bot.message_handler(commands=['adminrestart'])
+def admin_restart(message):
+
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    bot.send_message(message.chat.id,"Restarting server...")
+
+    os.execv(sys.executable, ['python'] + sys.argv)
+
+# ---------- NOTICE ----------
 
 @bot.message_handler(commands=['notice'])
 def notice(message):
@@ -248,58 +301,39 @@ def notice(message):
 
     bot.send_message(message.chat.id,"Notice Sent")
 
-# ---------------- RULES ----------------
+# ---------- RULES ----------
 
 @bot.message_handler(func=lambda m:m.text=="📜 Order Rules")
 def rules(message):
 
-    bot.send_message(
-        message.chat.id,
+    bot.send_message(message.chat.id,
 """📜 ORDER RULES
 
 • Guild Auto Approval ON রাখতে হবে
 • সঠিক Clan ID দিতে হবে
 • Original payment screenshot দিতে হবে
-• Payment এ Only Send Money করবেন"""
-)
+• Payment এ Only Send Money করবেন""")
 
-# ---------------- SUPPORT ----------------
+# ---------- SUPPORT ----------
 
 @bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
 def support(message):
 
     bot.send_message(message.chat.id,"WhatsApp: 01607254046")
 
-# ---------------- ABOUT ----------------
+# ---------- ABOUT ----------
 
 @bot.message_handler(func=lambda m:m.text=="ℹ️ About Shop")
 def about(message):
 
-    bot.send_message(
-        message.chat.id,
+    bot.send_message(message.chat.id,
 """Welcome to ALPHAN GAMING SHOP
 
 ⚡ Fast Delivery
 🔒 Trusted Service
-💬 24/7 Support"""
-)
+💬 24/7 Support""")
 
-# ---------------- RESTART ----------------
-
-@bot.message_handler(func=lambda m:m.text=="🔄 Restart Bot")
-def restart(message):
-
-    if message.from_user.id!=ADMIN_ID:
-        return
-
-    bot.send_message(message.chat.id,"Restarting...")
-
-    os.execv(sys.executable, ['python'] + sys.argv)
-
-# ---------------- RUN ----------------
-
-bot.infinity_polling()
-import time
+# ---------- SAFE POLLING ----------
 
 while True:
     try:
