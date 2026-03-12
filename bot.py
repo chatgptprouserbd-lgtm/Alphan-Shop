@@ -105,6 +105,100 @@ def start(m):
         reply_markup=kb
     )
 
+# ---------------- ADMIN PANEL ----------------
+
+@bot.message_handler(commands=['admin'])
+def admin_panel(m):
+
+    if m.from_user.id != ADMIN_ID:
+        return
+
+    kb=ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.add("📢 Send Notice","💰 Edit Price")
+
+    bot.send_message(m.chat.id,"ADMIN PANEL",reply_markup=kb)
+
+# ---------------- NOTICE ----------------
+
+@bot.message_handler(func=lambda m:m.text=="📢 Send Notice")
+def notice_ask(m):
+
+    if m.from_user.id != ADMIN_ID:
+        return
+
+    user_step[m.from_user.id]="notice"
+    bot.send_message(m.chat.id,"Send notice message")
+
+@bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="notice")
+def send_notice(m):
+
+    cursor.execute("SELECT id FROM users")
+    users=cursor.fetchall()
+
+    text=f"""
+⚠️ IMPORTANT NOTICE
+
+━━━━━━━━━━━━━━
+
+{m.text}
+
+━━━━━━━━━━━━━━
+
+— ALPHAN GAMING SHOP
+"""
+
+    for u in users:
+        try:
+            bot.send_message(u[0],text)
+        except:
+            pass
+
+    bot.send_message(m.chat.id,"Notice Sent")
+    user_step.pop(m.from_user.id,None)
+
+# ---------------- EDIT PRICE ----------------
+
+@bot.message_handler(func=lambda m:m.text=="💰 Edit Price")
+def edit_price(m):
+
+    if m.from_user.id != ADMIN_ID:
+        return
+
+    kb=InlineKeyboardMarkup()
+
+    kb.add(InlineKeyboardButton("8L Glory",callback_data="edit_p1"))
+    kb.add(InlineKeyboardButton("6L Glory",callback_data="edit_p2"))
+    kb.add(InlineKeyboardButton("Full Guild",callback_data="edit_p3"))
+    kb.add(InlineKeyboardButton("Trial",callback_data="edit_p4"))
+    kb.add(InlineKeyboardButton("7 Level Guild",callback_data="edit_p5"))
+
+    bot.send_message(m.chat.id,"Select package",reply_markup=kb)
+
+@bot.callback_query_handler(func=lambda c:c.data.startswith("edit_"))
+def edit_select(c):
+
+    pkg=c.data.split("_")[1]
+    order_data[c.from_user.id]={"edit":pkg}
+
+    user_step[c.from_user.id]="price"
+
+    bot.send_message(c.message.chat.id,"Send new price")
+
+@bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="price")
+def save_price(m):
+
+    pkg=order_data[m.from_user.id]["edit"]
+
+    cursor.execute(
+    "UPDATE prices SET price=? WHERE package=?",
+    (int(m.text),pkg)
+    )
+
+    conn.commit()
+
+    bot.send_message(m.chat.id,"Price Updated")
+    user_step.pop(m.from_user.id,None)
+
 # ---------------- PRICE LIST ----------------
 
 @bot.message_handler(func=lambda m:m.text=="👑 Price List")
@@ -163,9 +257,26 @@ def number(m):
     user_step[m.from_user.id]="ss"
 
     bot.send_message(
-        m.chat.id,
-        "💳 Payment Number\n\n01861316505\n\nSend Money Only\nThen send screenshot"
-    )
+m.chat.id,
+"""
+💳 PAYMENT INSTRUCTION
+
+━━━━━━━━━━━━━━
+
+📱 bKash / Nagad
+
+Number: 01861316505
+
+✔ Only Send Money
+
+━━━━━━━━━━━━━━
+
+📸 Payment করার পরে অবশ্যই
+original screenshot send করবেন।
+
+⚠️ Fake screenshot দিলে order reject হবে।
+"""
+)
 
 # ---------------- SCREENSHOT ----------------
 
@@ -176,7 +287,6 @@ def screenshot(m):
         return
 
     d=order_data[m.from_user.id]
-
     oid=str(uuid.uuid4())[:8]
 
     cursor.execute(
@@ -206,7 +316,24 @@ WA: {d['number']}""",
     reply_markup=kb
     )
 
-    bot.send_message(m.chat.id,"✅ Order Submitted\n\nPlease wait for admin approval")
+    bot.send_message(
+m.chat.id,
+"""
+✅ ORDER RECEIVED
+
+━━━━━━━━━━━━━━
+
+আপনার order সফলভাবে submit হয়েছে।
+
+⏳ এখন Admin review করবে।
+
+অনুগ্রহ করে কিছু সময় অপেক্ষা করুন।
+
+━━━━━━━━━━━━━━
+
+🙏 ALPHAN GAMING SHOP ব্যবহার করার জন্য ধন্যবাদ।
+"""
+)
 
     user_step.pop(m.from_user.id,None)
     order_data.pop(m.from_user.id,None)
@@ -222,7 +349,7 @@ def approve(c):
     conn.commit()
 
     bot.edit_message_caption(
-    f"Order {oid}\n\n✅ APPROVED",
+    f"Order {oid}\n\nAPPROVED",
     c.message.chat.id,
     c.message.message_id)
 
@@ -237,7 +364,7 @@ def reject(c):
     conn.commit()
 
     bot.edit_message_caption(
-    f"Order {oid}\n\n❌ REJECTED",
+    f"Order {oid}\n\nREJECTED",
     c.message.chat.id,
     c.message.message_id)
 
@@ -254,10 +381,10 @@ def my_orders(m):
     rows=cursor.fetchall()
 
     if not rows:
-        bot.send_message(m.chat.id,"❌ No orders found")
+        bot.send_message(m.chat.id,"No orders found")
         return
 
-    text="📦 YOUR ORDERS\n\n"
+    text="YOUR ORDERS\n\n"
 
     for r in rows:
         text+=f"{r[0]} | {r[1]} | {r[2]}\n"
@@ -269,17 +396,47 @@ def my_orders(m):
 @bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
 def support(m):
 
-    bot.send_message(m.chat.id,"WhatsApp: 01607254046")
+    kb = InlineKeyboardMarkup()
 
+    kb.add(
+        InlineKeyboardButton(
+            "📞 Chat on WhatsApp",
+            url="https://wa.me/8801607254046"
+        )
+    )
+
+    bot.send_message(
+        m.chat.id,
+        "Customer Support এ যোগাযোগ করতে নিচের বাটনে চাপুন:",
+        reply_markup=kb
+    )
 # ---------------- RULES ----------------
 
 @bot.message_handler(func=lambda m:m.text=="📜 Order Rules")
 def rules(m):
 
     bot.send_message(
-        m.chat.id,
-        "Guild auto approval on রাখবেন\nসঠিক UID দিবেন\nOriginal payment screenshot দিবেন"
-    )
+m.chat.id,
+"""
+📜 ORDER RULES
+
+━━━━━━━━━━━━━━
+
+1️⃣ Guild অবশ্যই **Auto Approval ON** করে রাখবেন
+
+2️⃣ Order করার সময় **সঠিক Clan / Guild UID** দিবেন
+
+3️⃣ Payment করার পরে **Original Screenshot** দিতে হবে
+
+4️⃣ Payment অবশ্যই **Send Money** করতে হবে
+
+5️⃣ ভুল UID দিলে bot দায়ী থাকবে না
+
+━━━━━━━━━━━━━━
+
+✔ Rules follow করলে order দ্রুত approve হবে
+"""
+)
 
 # ---------------- ABOUT ----------------
 
@@ -287,9 +444,31 @@ def rules(m):
 def about(m):
 
     bot.send_message(
-        m.chat.id,
-        "ALPHAN GAMING SHOP\nGlory Bot Sale"
-    )
+m.chat.id,
+"""
+ℹ️ ABOUT ALPHAN GAMING SHOP
+
+━━━━━━━━━━━━━━
+
+👑 Shop Name:
+ALPHAN GAMING SHOP
+
+⚡ Service:
+Glory Bot Sale
+
+🎮 আমরা Free Fire guild boosting
+এবং glory service প্রদান করি।
+
+✔ Trusted Service
+✔ Fast Delivery
+✔ Active Support
+
+━━━━━━━━━━━━━━
+
+📞 Support:
+WhatsApp - 01607254046
+"""
+)
 
 # ---------------- RESTART ----------------
 
@@ -299,8 +478,7 @@ def restart(m):
     user_step.pop(m.from_user.id,None)
     order_data.pop(m.from_user.id,None)
 
-    bot.send_message(m.chat.id,"🔄 Bot Restarted")
-
+    bot.send_message(m.chat.id,"Bot Restarted")
     start(m)
 
 # ---------------- RUN BOT ----------------
