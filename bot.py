@@ -1,5 +1,3 @@
-# ---------- KEEP ALIVE (Render Fix) ----------
-
 from flask import Flask
 import threading
 import os
@@ -8,7 +6,8 @@ import telebot
 from telebot.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 import sqlite3
 import uuid
-import sys
+
+# ---------- KEEP ALIVE ----------
 
 app = Flask(__name__)
 
@@ -17,8 +16,8 @@ def home():
     return "Bot running"
 
 def run():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT",8080))
+    app.run(host="0.0.0.0",port=port)
 
 def keep_alive():
     t = threading.Thread(target=run)
@@ -35,22 +34,22 @@ bot = telebot.TeleBot(TOKEN)
 
 # ---------- DATABASE ----------
 
-conn = sqlite3.connect("shop.db", check_same_thread=False)
+conn = sqlite3.connect("shop.db",check_same_thread=False)
 cursor = conn.cursor()
 
 cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY)")
 cursor.execute("CREATE TABLE IF NOT EXISTS orders (order_id TEXT,user_id INTEGER,package TEXT,uid TEXT,number TEXT,status TEXT)")
 conn.commit()
 
-user_step = {}
-order_data = {}
+user_step={}
+order_data={}
 
-# ---------- PACKAGE NAMES ----------
+# ---------- PACKAGE LIST ----------
 
-packages = {
+packages={
 "4l":"🟢 ৪ লাখ গ্লোরি – ৳750",
 "6l":"🟢 ৬ লাখ গ্লোরি – ৳950",
-"guild":"🔶 ফুল গিল্ড ম্যাক্স ৭ প্যাকেজ – ৳1350",
+"guild":"🔶 ফুল গিল্ড ম্যাক্স – ৳1350",
 "trial":"⚡ ট্রায়াল প্যাকেজ – ৳180",
 "lvl7":"⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳1150"
 }
@@ -63,7 +62,7 @@ def start(message):
     cursor.execute("INSERT OR IGNORE INTO users VALUES(?)",(message.from_user.id,))
     conn.commit()
 
-    kb = ReplyKeyboardMarkup(resize_keyboard=True)
+    kb=ReplyKeyboardMarkup(resize_keyboard=True)
 
     kb.add("🛒 Shop Items","📦 My Orders")
     kb.add("📞 Customer Support","📜 Order Rules")
@@ -75,31 +74,80 @@ def start(message):
         reply_markup=kb
     )
 
+# ---------- ADMIN PANEL ----------
+
+@bot.message_handler(commands=['admin'])
+def admin_panel(message):
+
+    if message.from_user.id!=ADMIN_ID:
+        return
+
+    kb=ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.add("📢 Send Notice")
+
+    bot.send_message(message.chat.id,"🔧 ADMIN PANEL",reply_markup=kb)
+
+# ---------- ASK NOTICE ----------
+
+@bot.message_handler(func=lambda m:m.text=="📢 Send Notice")
+def ask_notice(message):
+
+    if message.from_user.id!=ADMIN_ID:
+        return
+
+    user_step[message.from_user.id]="notice"
+
+    bot.send_message(message.chat.id,"Write notice message")
+
+# ---------- SEND NOTICE ----------
+
+@bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="notice")
+def send_notice(message):
+
+    if message.from_user.id!=ADMIN_ID:
+        return
+
+    notice_text=message.text
+
+    styled_notice=f"""⚠️ IMPORTANT NOTICE
+
+━━━━━━━━━━━━━━
+
+{notice_text}
+
+━━━━━━━━━━━━━━
+
+— ALPHAN GAMING SHOP"""
+
+    cursor.execute("SELECT user_id FROM users")
+    users=cursor.fetchall()
+
+    for u in users:
+        try:
+            bot.send_message(u[0],styled_notice)
+        except:
+            pass
+
+    bot.send_message(message.chat.id,"✅ Notice Sent")
+
+    user_step[message.from_user.id]=None
+
 # ---------- SHOP ----------
 
-@bot.message_handler(func=lambda m: m.text=="🛒 Shop Items")
+@bot.message_handler(func=lambda m:m.text=="🛒 Shop Items")
 def shop(message):
 
-    text = """
+    text="""
 👑 ALPHAN SPECIAL OFFERS 👑
-━━━━━━━━━━━━━━━━
 
-🟢 ৪ লাখ গ্লোরি – ৳750 টাকা
-🟢 ৬ লাখ গ্লোরি – ৳950 টাকা
-
-🔶 ফুল গিল্ড ম্যাক্স ৭ প্যাকেজ – ৳1350 টাকা
-
-⭐ রিজিওন টপ ১০ প্যাকেজ – যোগাযোগ করুন
-
-⚡ ট্রায়াল প্যাকেজ (৪টি বোট ৮ ঘণ্টা) – ৳180 টাকা
-
-⚡ ৭ লেভেল ম্যাক্স গিল্ড বিক্রি – ৳1150 টাকা
-
-━━━━━━━━━━━━━━━━
-একটি প্যাকেজ সিলেক্ট করুন
+🟢 ৪ লাখ গ্লোরি – ৳750
+🟢 ৬ লাখ গ্লোরি – ৳950
+🔶 ফুল গিল্ড ম্যাক্স – ৳1350
+⚡ ট্রায়াল প্যাকেজ – ৳180
+⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳1150
 """
 
-    kb = InlineKeyboardMarkup()
+    kb=InlineKeyboardMarkup()
 
     kb.add(InlineKeyboardButton("🟢 ৪ লাখ গ্লোরি",callback_data="4l"))
     kb.add(InlineKeyboardButton("🟢 ৬ লাখ গ্লোরি",callback_data="6l"))
@@ -111,44 +159,45 @@ def shop(message):
 
 # ---------- PACKAGE SELECT ----------
 
-@bot.callback_query_handler(func=lambda call: call.data in packages)
+@bot.callback_query_handler(func=lambda call:call.data in packages)
 def package(call):
 
-    order_data[call.from_user.id] = {"package":packages[call.data]}
-    user_step[call.from_user.id] = "uid"
+    order_data[call.from_user.id]={"package":packages[call.data]}
+
+    user_step[call.from_user.id]="uid"
 
     bot.send_message(call.message.chat.id,"Send Clan UID")
 
 # ---------- UID ----------
 
-@bot.message_handler(func=lambda m: user_step.get(m.from_user.id)=="uid")
+@bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="uid")
 def get_uid(message):
 
-    order_data[message.from_user.id]["uid"] = message.text
-    user_step[message.from_user.id] = "number"
+    order_data[message.from_user.id]["uid"]=message.text
+
+    user_step[message.from_user.id]="number"
 
     bot.send_message(message.chat.id,"Send WhatsApp Number")
 
 # ---------- NUMBER ----------
 
-@bot.message_handler(func=lambda m: user_step.get(m.from_user.id)=="number")
+@bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="number")
 def get_number(message):
 
-    order_data[message.from_user.id]["number"] = message.text
-    user_step[message.from_user.id] = "ss"
+    order_data[message.from_user.id]["number"]=message.text
 
-    bot.send_message(
-    message.chat.id,
+    user_step[message.from_user.id]="ss"
+
+    bot.send_message(message.chat.id,
 """💳 Payment Number
 
-Bkash / Nagad 
+Bkash / Nagad
 
-📱 01861316505
+01861316505
 
-⚠️ Only Send Money
+Only Send Money
 
-Payment করার পরে screenshot দিন."""
-)
+Send payment screenshot""")
 
 # ---------- SCREENSHOT ----------
 
@@ -158,16 +207,19 @@ def screenshot(message):
     if user_step.get(message.from_user.id)!="ss":
         return
 
-    data = order_data[message.from_user.id]
-    order_id = str(uuid.uuid4())[:8]
+    data=order_data[message.from_user.id]
+
+    order_id=str(uuid.uuid4())[:8]
 
     cursor.execute(
         "INSERT INTO orders VALUES(?,?,?,?,?,?)",
         (order_id,message.from_user.id,data["package"],data["uid"],data["number"],"pending")
     )
+
     conn.commit()
 
-    kb = InlineKeyboardMarkup()
+    kb=InlineKeyboardMarkup()
+
     kb.add(
         InlineKeyboardButton("✅ Approve",callback_data="approve_"+order_id),
         InlineKeyboardButton("❌ Reject",callback_data="reject_"+order_id)
@@ -179,14 +231,14 @@ def screenshot(message):
         f"""🆕 NEW ORDER
 
 Order ID: {order_id}
+
 Package: {data['package']}
 Clan UID: {data['uid']}
-WhatsApp: {data['number']}
-""",
+WhatsApp: {data['number']}""",
         reply_markup=kb
     )
 
-    bot.send_message(message.chat.id,"✅ Order Submitted Successfully\n\nঅনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন।")
+    bot.send_message(message.chat.id,"✅ Order Submitted Successfully")
 
     user_step[message.from_user.id]=None
 
@@ -195,7 +247,7 @@ WhatsApp: {data['number']}
 @bot.callback_query_handler(func=lambda c:c.data.startswith("approve"))
 def approve(call):
 
-    order_id = call.data.split("_")[1]
+    order_id=call.data.split("_")[1]
 
     cursor.execute("UPDATE orders SET status='approved' WHERE order_id=?",(order_id,))
     conn.commit()
@@ -206,17 +258,12 @@ def approve(call):
         call.message.message_id
     )
 
-    cursor.execute("SELECT user_id FROM orders WHERE order_id=?",(order_id,))
-    user = cursor.fetchone()[0]
-
-    bot.send_message(user,"✅ Order Approved")
-
 # ---------- REJECT ----------
 
 @bot.callback_query_handler(func=lambda c:c.data.startswith("reject"))
 def reject(call):
 
-    order_id = call.data.split("_")[1]
+    order_id=call.data.split("_")[1]
 
     cursor.execute("UPDATE orders SET status='rejected' WHERE order_id=?",(order_id,))
     conn.commit()
@@ -227,14 +274,9 @@ def reject(call):
         call.message.message_id
     )
 
-    cursor.execute("SELECT user_id FROM orders WHERE order_id=?",(order_id,))
-    user = cursor.fetchone()[0]
-
-    bot.send_message(user,"❌ Order Rejected")
-
 # ---------- MY ORDERS ----------
 
-@bot.message_handler(func=lambda m: m.text=="📦 My Orders")
+@bot.message_handler(func=lambda m:m.text=="📦 My Orders")
 def my_orders(message):
 
     cursor.execute(
@@ -242,7 +284,7 @@ def my_orders(message):
         (message.from_user.id,)
     )
 
-    orders = cursor.fetchall()
+    orders=cursor.fetchall()
 
     if not orders:
         bot.send_message(message.chat.id,"❌ No orders found")
@@ -260,89 +302,9 @@ def my_orders(message):
         if o[2]=="rejected":
             status="❌ Rejected"
 
-        text += f"Order ID: {o[0]}\nPackage: {o[1]}\nStatus: {status}\n\n"
+        text+=f"Order ID: {o[0]}\nPackage: {o[1]}\nStatus: {status}\n\n"
 
     bot.send_message(message.chat.id,text)
-
-# ---------- USER RESTART ----------
-
-@bot.message_handler(func=lambda m:m.text=="🔄 Restart Bot")
-def user_restart(message):
-
-    if message.from_user.id in user_step:
-        user_step.pop(message.from_user.id)
-
-    if message.from_user.id in order_data:
-        order_data.pop(message.from_user.id)
-
-    bot.send_message(message.chat.id,"🔄 Bot restarted\n\nPlease start again.")
-
-    start(message)
-
-# ---------- ADMIN RESTART ----------
-
-@bot.message_handler(commands=['adminrestart'])
-def admin_restart(message):
-
-    if message.from_user.id != ADMIN_ID:
-        return
-
-    bot.send_message(message.chat.id,"Restarting server...")
-
-    os.execv(sys.executable, ['python'] + sys.argv)
-
-# ---------- NOTICE ----------
-
-@bot.message_handler(commands=['notice'])
-def notice(message):
-
-    if message.from_user.id!=ADMIN_ID:
-        return
-
-    text = message.text.replace("/notice ","")
-
-    cursor.execute("SELECT user_id FROM users")
-    users = cursor.fetchall()
-
-    for u in users:
-        try:
-            bot.send_message(u[0],text)
-        except:
-            pass
-
-    bot.send_message(message.chat.id,"Notice Sent")
-
-# ---------- RULES ----------
-
-@bot.message_handler(func=lambda m:m.text=="📜 Order Rules")
-def rules(message):
-
-    bot.send_message(message.chat.id,
-"""📜 ORDER RULES
-
-• Guild Auto Approval ON রাখতে হবে
-• সঠিক Clan ID দিতে হবে
-• Original payment screenshot দিতে হবে
-• Payment এ Only Send Money করবেন""")
-
-# ---------- SUPPORT ----------
-
-@bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
-def support(message):
-
-    bot.send_message(message.chat.id,"WhatsApp: 01607254046")
-
-# ---------- ABOUT ----------
-
-@bot.message_handler(func=lambda m:m.text=="ℹ️ About Shop")
-def about(message):
-
-    bot.send_message(message.chat.id,
-"""Welcome to ALPHAN GAMING SHOP
-
-⚡ Fast Delivery
-🔒 Trusted Service
-💬 24/7 Support""")
 
 # ---------- SAFE POLLING ----------
 
@@ -350,5 +312,5 @@ while True:
     try:
         bot.infinity_polling(skip_pending=True)
     except Exception as e:
-        print("Error:", e)
+        print(e)
         time.sleep(5)
