@@ -141,7 +141,7 @@ def get_number(message):
     message.chat.id,
 """💳 Payment Number
 
-Bkash / Nagad / Rocket
+Bkash / Nagad 
 
 📱 01861316505
 
