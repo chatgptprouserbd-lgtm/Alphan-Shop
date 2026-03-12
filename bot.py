@@ -349,9 +349,30 @@ def approve(c):
     conn.commit()
 
     bot.edit_message_caption(
-    f"Order {oid}\n\nAPPROVED",
+    f"Order {oid}\n\n✅ APPROVED",
     c.message.chat.id,
     c.message.message_id)
+
+    cursor.execute("SELECT user_id FROM orders WHERE order_id=?",(oid,))
+    user_id=cursor.fetchone()[0]
+
+    bot.send_message(
+    user_id,
+    f"""
+✅ ORDER APPROVED
+
+━━━━━━━━━━━━━━
+
+Your Order ID: {oid}
+
+Your order has been approved.
+
+━━━━━━━━━━━━━━
+
+Thank you for choosing
+ALPHAN GAMING SHOP
+"""
+    )
 
 # ---------------- REJECT ----------------
 
@@ -364,9 +385,31 @@ def reject(c):
     conn.commit()
 
     bot.edit_message_caption(
-    f"Order {oid}\n\nREJECTED",
+    f"Order {oid}\n\n❌ REJECTED",
     c.message.chat.id,
     c.message.message_id)
+
+    cursor.execute("SELECT user_id FROM orders WHERE order_id=?",(oid,))
+    user_id=cursor.fetchone()[0]
+
+    bot.send_message(
+    user_id,
+    f"""
+❌ ORDER REJECTED
+
+━━━━━━━━━━━━━━
+
+Your Order ID: {oid}
+
+Unfortunately your order was rejected.
+
+Please contact support if needed.
+
+━━━━━━━━━━━━━━
+
+ALPHAN GAMING SHOP
+"""
+    )
 
 # ---------------- MY ORDERS ----------------
 
