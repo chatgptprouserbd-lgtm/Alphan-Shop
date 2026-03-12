@@ -7,7 +7,7 @@ from telebot.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeybo
 import sqlite3
 import uuid
 
-# ---------- KEEP ALIVE ----------
+# ---------------- KEEP ALIVE ----------------
 
 app = Flask(__name__)
 
@@ -25,36 +25,52 @@ def keep_alive():
 
 keep_alive()
 
-# ---------- BOT CONFIG ----------
+# ---------------- BOT CONFIG ----------------
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 bot = telebot.TeleBot(TOKEN)
 
-# ---------- DATABASE ----------
+# ---------------- DATABASE ----------------
 
 conn = sqlite3.connect("shop.db",check_same_thread=False)
 cursor = conn.cursor()
 
-cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY)")
-cursor.execute("CREATE TABLE IF NOT EXISTS orders (order_id TEXT,user_id INTEGER,package TEXT,uid TEXT,number TEXT,status TEXT)")
+cursor.execute("CREATE TABLE IF NOT EXISTS users(user_id INTEGER PRIMARY KEY)")
+cursor.execute("""CREATE TABLE IF NOT EXISTS orders(
+order_id TEXT,
+user_id INTEGER,
+package TEXT,
+uid TEXT,
+number TEXT,
+status TEXT
+)""")
+
 conn.commit()
 
 user_step={}
 order_data={}
 
-# ---------- PACKAGE LIST ----------
+# ---------------- PRICE LIST ----------------
 
-packages={
-"4l":"🟢 ৪ লাখ গ্লোরি – ৳750",
-"6l":"🟢 ৬ লাখ গ্লোরি – ৳950",
-"guild":"🔶 ফুল গিল্ড ম্যাক্স – ৳1350",
-"trial":"⚡ ট্রায়াল প্যাকেজ – ৳180",
-"lvl7":"⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳1150"
+prices={
+"4l":750,
+"6l":950,
+"guild":1350,
+"trial":180,
+"lvl7":1150
 }
 
-# ---------- START ----------
+packages={
+"4l":"🟢 ৪ লাখ গ্লোরি",
+"6l":"🟢 ৬ লাখ গ্লোরি",
+"guild":"🔶 ফুল গিল্ড ম্যাক্স",
+"trial":"⚡ ট্রায়াল প্যাকেজ",
+"lvl7":"⚡ ৭ লেভেল ম্যাক্স গিল্ড"
+}
+
+# ---------------- START ----------------
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -74,7 +90,7 @@ def start(message):
         reply_markup=kb
     )
 
-# ---------- ADMIN PANEL ----------
+# ---------------- ADMIN PANEL ----------------
 
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
@@ -83,11 +99,11 @@ def admin_panel(message):
         return
 
     kb=ReplyKeyboardMarkup(resize_keyboard=True)
-    kb.add("📢 Send Notice")
+    kb.add("📢 Send Notice","💰 Edit Price")
 
     bot.send_message(message.chat.id,"🔧 ADMIN PANEL",reply_markup=kb)
 
-# ---------- ASK NOTICE ----------
+# ---------------- NOTICE ----------------
 
 @bot.message_handler(func=lambda m:m.text=="📢 Send Notice")
 def ask_notice(message):
@@ -99,21 +115,17 @@ def ask_notice(message):
 
     bot.send_message(message.chat.id,"Write notice message")
 
-# ---------- SEND NOTICE ----------
-
 @bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="notice")
 def send_notice(message):
 
     if message.from_user.id!=ADMIN_ID:
         return
 
-    notice_text=message.text
-
-    styled_notice=f"""⚠️ IMPORTANT NOTICE
+    styled=f"""⚠️ IMPORTANT NOTICE
 
 ━━━━━━━━━━━━━━
 
-{notice_text}
+{message.text}
 
 ━━━━━━━━━━━━━━
 
@@ -124,7 +136,7 @@ def send_notice(message):
 
     for u in users:
         try:
-            bot.send_message(u[0],styled_notice)
+            bot.send_message(u[0],styled)
         except:
             pass
 
@@ -132,32 +144,72 @@ def send_notice(message):
 
     user_step[message.from_user.id]=None
 
-# ---------- SHOP ----------
+# ---------------- EDIT PRICE ----------------
+
+@bot.message_handler(func=lambda m:m.text=="💰 Edit Price")
+def edit_price(message):
+
+    if message.from_user.id!=ADMIN_ID:
+        return
+
+    kb=ReplyKeyboardMarkup(resize_keyboard=True)
+
+    kb.add("🟢 ৪ লাখ গ্লোরি","🟢 ৬ লাখ গ্লোরি")
+    kb.add("🔶 ফুল গিল্ড ম্যাক্স","⚡ ট্রায়াল প্যাকেজ")
+    kb.add("⚡ ৭ লেভেল ম্যাক্স গিল্ড")
+
+    user_step[message.from_user.id]="select_price"
+
+    bot.send_message(message.chat.id,"Select package",reply_markup=kb)
+
+@bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="select_price")
+def select_price(message):
+
+    for k,v in packages.items():
+        if message.text==v:
+
+            order_data[message.from_user.id]=k
+
+            user_step[message.from_user.id]="new_price"
+
+            bot.send_message(message.chat.id,"Send new price")
+
+            return
+
+@bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="new_price")
+def update_price(message):
+
+    key=order_data[message.from_user.id]
+
+    prices[key]=int(message.text)
+
+    bot.send_message(message.chat.id,f"✅ Price Updated\n\n{packages[key]} → {message.text} Tk")
+
+    user_step[message.from_user.id]=None
+
+# ---------------- SHOP ----------------
 
 @bot.message_handler(func=lambda m:m.text=="🛒 Shop Items")
 def shop(message):
 
-    text="""
+    text=f"""
 👑 ALPHAN SPECIAL OFFERS 👑
 
-🟢 ৪ লাখ গ্লোরি – ৳750
-🟢 ৬ লাখ গ্লোরি – ৳950
-🔶 ফুল গিল্ড ম্যাক্স – ৳1350
-⚡ ট্রায়াল প্যাকেজ – ৳180
-⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳1150
+🟢 ৪ লাখ গ্লোরি – ৳{prices['4l']}
+🟢 ৬ লাখ গ্লোরি – ৳{prices['6l']}
+🔶 ফুল গিল্ড ম্যাক্স – ৳{prices['guild']}
+⚡ ট্রায়াল প্যাকেজ – ৳{prices['trial']}
+⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳{prices['lvl7']}
 """
 
     kb=InlineKeyboardMarkup()
 
-    kb.add(InlineKeyboardButton("🟢 ৪ লাখ গ্লোরি",callback_data="4l"))
-    kb.add(InlineKeyboardButton("🟢 ৬ লাখ গ্লোরি",callback_data="6l"))
-    kb.add(InlineKeyboardButton("🔶 ফুল গিল্ড ম্যাক্স",callback_data="guild"))
-    kb.add(InlineKeyboardButton("⚡ ট্রায়াল প্যাকেজ",callback_data="trial"))
-    kb.add(InlineKeyboardButton("⚡ ৭ লেভেল ম্যাক্স গিল্ড",callback_data="lvl7"))
+    for k,v in packages.items():
+        kb.add(InlineKeyboardButton(v,callback_data=k))
 
     bot.send_message(message.chat.id,text,reply_markup=kb)
 
-# ---------- PACKAGE SELECT ----------
+# ---------------- ORDER ----------------
 
 @bot.callback_query_handler(func=lambda call:call.data in packages)
 def package(call):
@@ -168,24 +220,18 @@ def package(call):
 
     bot.send_message(call.message.chat.id,"Send Clan UID")
 
-# ---------- UID ----------
-
 @bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="uid")
-def get_uid(message):
+def uid(message):
 
     order_data[message.from_user.id]["uid"]=message.text
-
     user_step[message.from_user.id]="number"
 
     bot.send_message(message.chat.id,"Send WhatsApp Number")
 
-# ---------- NUMBER ----------
-
 @bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="number")
-def get_number(message):
+def number(message):
 
     order_data[message.from_user.id]["number"]=message.text
-
     user_step[message.from_user.id]="ss"
 
     bot.send_message(message.chat.id,
@@ -199,7 +245,7 @@ Only Send Money
 
 Send payment screenshot""")
 
-# ---------- SCREENSHOT ----------
+# ---------------- SCREENSHOT ----------------
 
 @bot.message_handler(content_types=['photo'])
 def screenshot(message):
@@ -242,7 +288,7 @@ WhatsApp: {data['number']}""",
 
     user_step[message.from_user.id]=None
 
-# ---------- APPROVE ----------
+# ---------------- APPROVE / REJECT ----------------
 
 @bot.callback_query_handler(func=lambda c:c.data.startswith("approve"))
 def approve(call):
@@ -258,8 +304,6 @@ def approve(call):
         call.message.message_id
     )
 
-# ---------- REJECT ----------
-
 @bot.callback_query_handler(func=lambda c:c.data.startswith("reject"))
 def reject(call):
 
@@ -274,43 +318,11 @@ def reject(call):
         call.message.message_id
     )
 
-# ---------- MY ORDERS ----------
-
-@bot.message_handler(func=lambda m:m.text=="📦 My Orders")
-def my_orders(message):
-
-    cursor.execute(
-        "SELECT order_id,package,status FROM orders WHERE user_id=?",
-        (message.from_user.id,)
-    )
-
-    orders=cursor.fetchall()
-
-    if not orders:
-        bot.send_message(message.chat.id,"❌ No orders found")
-        return
-
-    text="📦 YOUR ORDERS\n\n"
-
-    for o in orders:
-
-        status="⏳ Pending"
-
-        if o[2]=="approved":
-            status="✅ Approved"
-
-        if o[2]=="rejected":
-            status="❌ Rejected"
-
-        text+=f"Order ID: {o[0]}\nPackage: {o[1]}\nStatus: {status}\n\n"
-
-    bot.send_message(message.chat.id,text)
-
-# ---------- SAFE POLLING ----------
+# ---------------- SAFE POLLING ----------------
 
 while True:
     try:
-        bot.infinity_polling(skip_pending=True)
+        bot.infinity_polling(timeout=60,long_polling_timeout=30,skip_pending=True)
     except Exception as e:
         print(e)
         time.sleep(5)
