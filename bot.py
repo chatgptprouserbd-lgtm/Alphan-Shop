@@ -297,3 +297,12 @@ def new_price(message):
     bot.send_message(message.chat.id,f"✅ Price Updated\n\n{packages[key]} → {message.text} Tk")
 
     user_step[message.from_user.id]=None
+
+# ---------- RUN BOT ----------
+
+while True:
+    try:
+        bot.infinity_polling(timeout=60, long_polling_timeout=30, skip_pending=True)
+    except Exception as e:
+        print(e)
+        time.sleep(5)
