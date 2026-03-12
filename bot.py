@@ -1,37 +1,41 @@
-from flask import Flask
-import threading
-import os
 import telebot
+from telebot.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
+import sqlite3
 import uuid
-import time
-from telebot.types import *
-
-# ---------------- KEEP ALIVE ----------------
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Bot Running"
-
-def run():
-    port = int(os.environ.get("PORT",8080))
-    app.run(host="0.0.0.0",port=port)
-
-threading.Thread(target=run).start()
-
-# ---------------- CONFIG ----------------
+import os
+import sys
 
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 bot = telebot.TeleBot(TOKEN)
 
-orders = {}
+conn = sqlite3.connect("shop.db", check_same_thread=False)
+cursor = conn.cursor()
 
-# ---------------- MENU ----------------
+cursor.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY)")
+cursor.execute("CREATE TABLE IF NOT EXISTS orders (order_id TEXT,user_id INTEGER,package TEXT,uid TEXT,number TEXT,status TEXT)")
+conn.commit()
 
-def main_menu():
+user_step = {}
+order_data = {}
+
+# package names
+packages = {
+"4l":"🟢 ৪ লাখ গ্লোরি – ৳750",
+"6l":"🟢 ৬ লাখ গ্লোরি – ৳950",
+"guild":"🔶 ফুল গিল্ড ম্যাক্স ৭ প্যাকেজ – ৳1350",
+"trial":"⚡ ট্রায়াল প্যাকেজ – ৳180",
+"lvl7":"⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳1150"
+}
+
+# ---------------- START ----------------
+
+@bot.message_handler(commands=['start'])
+def start(message):
+
+    cursor.execute("INSERT OR IGNORE INTO users VALUES(?)",(message.from_user.id,))
+    conn.commit()
 
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
 
@@ -39,23 +43,16 @@ def main_menu():
     kb.add("📞 Customer Support","📜 Order Rules")
     kb.add("ℹ️ About Shop","🔄 Restart Bot")
 
-    return kb
-
-# ---------------- START ----------------
-
-@bot.message_handler(commands=['start'])
-def start(m):
-
     bot.send_message(
-        m.chat.id,
+        message.chat.id,
         "👑 Welcome to ALPHAN GAMING SHOP\n\nGlory Bot Sale",
-        reply_markup=main_menu()
+        reply_markup=kb
     )
 
 # ---------------- SHOP ----------------
 
 @bot.message_handler(func=lambda m: m.text=="🛒 Shop Items")
-def shop(m):
+def shop(message):
 
     text = """
 👑 ALPHAN SPECIAL OFFERS 👑
@@ -73,159 +70,232 @@ def shop(m):
 ⚡ ৭ লেভেল ম্যাক্স গিল্ড বিক্রি – ৳1150 টাকা
 
 ━━━━━━━━━━━━━━━━
-একটি প্যাকেজ সিলেক্ট করুন:
+একটি প্যাকেজ সিলেক্ট করুন
 """
 
     kb = InlineKeyboardMarkup()
 
-    kb.add(InlineKeyboardButton("৪ লাখ গ্লোরি – ৳750",callback_data="p1"))
-    kb.add(InlineKeyboardButton("৬ লাখ গ্লোরি – ৳950",callback_data="p2"))
-    kb.add(InlineKeyboardButton("ফুল গিল্ড ম্যাক্স – ৳1350",callback_data="p3"))
-    kb.add(InlineKeyboardButton("ট্রায়াল প্যাকেজ – ৳180",callback_data="p4"))
-    kb.add(InlineKeyboardButton("৭ লেভেল ম্যাক্স গিল্ড – ৳1150",callback_data="p5"))
+    kb.add(InlineKeyboardButton("🟢 ৪ লাখ গ্লোরি",callback_data="4l"))
+    kb.add(InlineKeyboardButton("🟢 ৬ লাখ গ্লোরি",callback_data="6l"))
+    kb.add(InlineKeyboardButton("🔶 ফুল গিল্ড ম্যাক্স",callback_data="guild"))
+    kb.add(InlineKeyboardButton("⚡ ট্রায়াল প্যাকেজ",callback_data="trial"))
+    kb.add(InlineKeyboardButton("⚡ ৭ লেভেল ম্যাক্স গিল্ড",callback_data="lvl7"))
 
-    bot.send_message(m.chat.id,text,reply_markup=kb)
+    bot.send_message(message.chat.id,text,reply_markup=kb)
 
 # ---------------- PACKAGE SELECT ----------------
 
-@bot.callback_query_handler(func=lambda c: c.data.startswith("p"))
-def package(c):
+@bot.callback_query_handler(func=lambda call: call.data in packages)
+def package(call):
 
-    packages = {
-        "p1":"৪ লাখ গ্লোরি",
-        "p2":"৬ লাখ গ্লোরি",
-        "p3":"ফুল গিল্ড ম্যাক্স ৭ প্যাকেজ",
-        "p4":"ট্রায়াল প্যাকেজ",
-        "p5":"৭ লেভেল ম্যাক্স গিল্ড"
-    }
+    order_data[call.from_user.id] = {"package":packages[call.data]}
+    user_step[call.from_user.id] = "uid"
 
-    orders[c.from_user.id] = {}
-
-    orders[c.from_user.id]["package"] = packages[c.data]
-
-    bot.send_message(
-        c.message.chat.id,
-        "Send Clan UID"
-    )
+    bot.send_message(call.message.chat.id,"Send Clan UID")
 
 # ---------------- UID ----------------
 
-@bot.message_handler(func=lambda m: m.from_user.id in orders and "uid" not in orders[m.from_user.id])
-def uid(m):
+@bot.message_handler(func=lambda m: user_step.get(m.from_user.id)=="uid")
+def get_uid(message):
 
-    orders[m.from_user.id]["uid"] = m.text
+    order_data[message.from_user.id]["uid"] = message.text
+    user_step[message.from_user.id] = "number"
 
-    bot.send_message(
-        m.chat.id,
-        "Send WhatsApp number"
-    )
+    bot.send_message(message.chat.id,"Send WhatsApp Number")
 
-# ---------------- WHATSAPP ----------------
+# ---------------- NUMBER ----------------
 
-@bot.message_handler(func=lambda m: m.from_user.id in orders and "whatsapp" not in orders[m.from_user.id])
-def whatsapp(m):
+@bot.message_handler(func=lambda m: user_step.get(m.from_user.id)=="number")
+def get_number(message):
 
-    orders[m.from_user.id]["whatsapp"] = m.text
+    order_data[message.from_user.id]["number"] = message.text
+    user_step[message.from_user.id] = "ss"
 
-    bot.send_message(
-        m.chat.id,
-"""
-💳 PAYMENT METHOD
-
-bKash: 01861316505
-Nagad: 01861316505
-
-⚠️ Only Send Money
-
-Send payment screenshot
-"""
-)
+    bot.send_message(message.chat.id,"Send Payment Screenshot")
 
 # ---------------- SCREENSHOT ----------------
 
 @bot.message_handler(content_types=['photo'])
-def screenshot(m):
+def screenshot(message):
 
-    uid = m.from_user.id
-
-    if uid not in orders:
+    if user_step.get(message.from_user.id)!="ss":
         return
 
-    data = orders[uid]
-
+    data = order_data[message.from_user.id]
     order_id = str(uuid.uuid4())[:8]
 
-    caption = f"""
-🆕 NEW ORDER
-
-Order ID: {order_id}
-
-Package: {data['package']}
-Clan UID: {data['uid']}
-WhatsApp: {data['whatsapp']}
-"""
+    cursor.execute(
+        "INSERT INTO orders VALUES(?,?,?,?,?,?)",
+        (order_id,message.from_user.id,data["package"],data["uid"],data["number"],"pending")
+    )
+    conn.commit()
 
     kb = InlineKeyboardMarkup()
-
     kb.add(
-        InlineKeyboardButton("✅ Approve",callback_data=f"ok_{uid}"),
-        InlineKeyboardButton("❌ Reject",callback_data=f"no_{uid}")
+        InlineKeyboardButton("✅ Approve",callback_data="approve_"+order_id),
+        InlineKeyboardButton("❌ Reject",callback_data="reject_"+order_id)
     )
 
     bot.send_photo(
         ADMIN_ID,
-        m.photo[-1].file_id,
-        caption=caption,
+        message.photo[-1].file_id,
+        f"""🆕 NEW ORDER
+
+Order ID: {order_id}
+Package: {data['package']}
+Clan UID: {data['uid']}
+WhatsApp: {data['number']}
+""",
         reply_markup=kb
     )
 
-    bot.send_message(
-        m.chat.id,
-"""
-✅ Order Submitted Successfully
+    bot.send_message(message.chat.id,"✅ Order Submitted Successfully\n\nঅনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন।")
 
-অনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন।
-Admin খুব শীঘ্রই আপনার অর্ডার যাচাই করবে।
-"""
+    user_step[message.from_user.id]=None
+
+# ---------------- APPROVE ----------------
+
+@bot.callback_query_handler(func=lambda c:c.data.startswith("approve"))
+def approve(call):
+
+    order_id = call.data.split("_")[1]
+
+    cursor.execute("UPDATE orders SET status='approved' WHERE order_id=?",(order_id,))
+    conn.commit()
+
+    bot.edit_message_caption(
+        f"Order ID {order_id}\n\nSTATUS: ✅ APPROVED",
+        call.message.chat.id,
+        call.message.message_id
+    )
+
+    cursor.execute("SELECT user_id FROM orders WHERE order_id=?",(order_id,))
+    user = cursor.fetchone()[0]
+
+    bot.send_message(user,"✅ Order Approved")
+
+# ---------------- REJECT ----------------
+
+@bot.callback_query_handler(func=lambda c:c.data.startswith("reject"))
+def reject(call):
+
+    order_id = call.data.split("_")[1]
+
+    cursor.execute("UPDATE orders SET status='rejected' WHERE order_id=?",(order_id,))
+    conn.commit()
+
+    bot.edit_message_caption(
+        f"Order ID {order_id}\n\nSTATUS: ❌ REJECTED",
+        call.message.chat.id,
+        call.message.message_id
+    )
+
+    cursor.execute("SELECT user_id FROM orders WHERE order_id=?",(order_id,))
+    user = cursor.fetchone()[0]
+
+    bot.send_message(user,"❌ Order Rejected")
+
+# ---------------- MY ORDERS ----------------
+
+@bot.message_handler(func=lambda m: m.text=="📦 My Orders")
+def my_orders(message):
+
+    cursor.execute(
+        "SELECT order_id,package,status FROM orders WHERE user_id=?",
+        (message.from_user.id,)
+    )
+
+    orders = cursor.fetchall()
+
+    if not orders:
+        bot.send_message(message.chat.id,"❌ No orders found")
+        return
+
+    text="📦 YOUR ORDERS\n\n"
+
+    for o in orders:
+
+        status = "⏳ Pending"
+
+        if o[2]=="approved":
+            status="✅ Approved"
+
+        if o[2]=="rejected":
+            status="❌ Rejected"
+
+        text += f"Order ID: {o[0]}\nPackage: {o[1]}\nStatus: {status}\n\n"
+
+    bot.send_message(message.chat.id,text)
+
+# ---------------- NOTICE ----------------
+
+@bot.message_handler(commands=['notice'])
+def notice(message):
+
+    if message.from_user.id!=ADMIN_ID:
+        return
+
+    text = message.text.replace("/notice ","")
+
+    cursor.execute("SELECT user_id FROM users")
+    users = cursor.fetchall()
+
+    for u in users:
+        try:
+            bot.send_message(u[0],text)
+        except:
+            pass
+
+    bot.send_message(message.chat.id,"Notice Sent")
+
+# ---------------- RULES ----------------
+
+@bot.message_handler(func=lambda m:m.text=="📜 Order Rules")
+def rules(message):
+
+    bot.send_message(
+        message.chat.id,
+"""📜 ORDER RULES
+
+• Guild Auto Approval ON রাখতে হবে
+• সঠিক Clan ID দিতে হবে
+• Original payment screenshot দিতে হবে
+• Payment এ Only Send Money করবেন"""
 )
 
-# ---------------- ADMIN ACTION ----------------
+# ---------------- SUPPORT ----------------
 
-@bot.callback_query_handler(func=lambda c: c.data.startswith(("ok","no")))
-def admin_action(c):
+@bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
+def support(message):
 
-    action,user = c.data.split("_")
+    bot.send_message(message.chat.id,"WhatsApp: 01607254046")
 
-    user = int(user)
+# ---------------- ABOUT ----------------
 
-    if action == "ok":
+@bot.message_handler(func=lambda m:m.text=="ℹ️ About Shop")
+def about(message):
 
-        bot.send_message(
-            user,
-            "✅ Order Approved\n\nআপনার অর্ডার গ্রহণ করা হয়েছে।"
-        )
+    bot.send_message(
+        message.chat.id,
+"""Welcome to ALPHAN GAMING SHOP
 
-    else:
+⚡ Fast Delivery
+🔒 Trusted Service
+💬 24/7 Support"""
+)
 
-        bot.send_message(
-            user,
-            "❌ Order Rejected\n\nSupport এ যোগাযোগ করুন।"
-        )
+# ---------------- RESTART ----------------
 
-# ---------------- STABLE POLLING ----------------
+@bot.message_handler(func=lambda m:m.text=="🔄 Restart Bot")
+def restart(message):
 
-while True:
+    if message.from_user.id!=ADMIN_ID:
+        return
 
-    try:
+    bot.send_message(message.chat.id,"Restarting...")
 
-        bot.infinity_polling(
-            timeout=60,
-            long_polling_timeout=30,
-            skip_pending=True
-        )
+    os.execv(sys.executable, ['python'] + sys.argv)
 
-    except Exception as e:
+# ---------------- RUN ----------------
 
-        print(e)
-
-        time.sleep(10)
+bot.infinity_polling()
