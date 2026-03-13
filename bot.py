@@ -81,23 +81,33 @@ packages={
 "p5":"⚡ ৭ লেভেল গিল্ড ক্রয়"
 }
 
+# ---------------- TRIAL NOTICE ----------------
+
 trial_notice = """
 ⚠️ TRIAL PACKAGE NOTICE
 
 ━━━━━━━━━━━━━━
 
-এই Trial Package এ ৪টি Bot থাকবে ৮ ঘন্টার জন্য।
+এই Trial Package এ থাকবে
+⚡ ৪টি Bot
+⏱ ৮ ঘন্টার জন্য
 
-আপনি মোট কত Glory পাবেন তা আগে থেকে বলা সম্ভব নয়।
-এটি সম্পূর্ণ Server activity এর উপর নির্ভর করে।
+আপনি মোট কত Glory পাবেন
+তা আগে থেকে বলা সম্ভব নয়।
 
-কখনও কখনও Server এ বেশি Rush থাকলে Bot Guild এ ঢুকতে সময় লাগতে পারে।
+এটি সম্পূর্ণ Server activity এর উপর depend করে।
 
 ━━━━━━━━━━━━━━
 
-⚠️ এটি একটি Trial Package।
+⚠️ কখনও কখনও Server এ Rush থাকলে
+Bot Guild এ ঢুকতে কিছু সময় লাগতে পারে।
 
-যদি এই সমস্যা না চান তাহলে Premium Package ব্যবহার করুন।
+অনুগ্রহ করে একটু অপেক্ষা করবেন।
+
+━━━━━━━━━━━━━━
+
+যদি এই সমস্যা না চান
+তাহলে Premium Package ব্যবহার করুন।
 
 ━━━━━━━━━━━━━━
 """
@@ -187,7 +197,7 @@ def edit_price(m):
 
     kb=InlineKeyboardMarkup()
 
-    kb.add(InlineKeyboardButton("8L Glory",callback_data="edit_p1"))
+    kb.add(InlineKeyboardButton("4L Glory",callback_data="edit_p1"))
     kb.add(InlineKeyboardButton("6L Glory",callback_data="edit_p2"))
     kb.add(InlineKeyboardButton("Full Guild",callback_data="edit_p3"))
     kb.add(InlineKeyboardButton("Trial",callback_data="edit_p4"))
@@ -198,8 +208,9 @@ def edit_price(m):
 @bot.callback_query_handler(func=lambda c:c.data.startswith("edit_"))
 def edit_select(c):
 
-    pkg=c.data.split("")[1]
+    pkg=c.data.split("_")[1]
     order_data[c.from_user.id]={"edit":pkg}
+
     user_step[c.from_user.id]="price"
 
     bot.send_message(c.message.chat.id,"Send new price")
@@ -216,7 +227,7 @@ def save_price(m):
 
     conn.commit()
 
-    bot.send_message(m.chat.id,"✅ Price Updated")
+    bot.send_message(m.chat.id,"Price Updated")
     user_step.pop(m.from_user.id,None)
 
 # ---------------- PRICE LIST ----------------
@@ -315,7 +326,7 @@ def screenshot(m):
     kb=InlineKeyboardMarkup()
 
     kb.add(
-    InlineKeyboardButton("✅ Approve",callback_data="a"+oid),
+    InlineKeyboardButton("✅ Approve",callback_data="a_"+oid),
     InlineKeyboardButton("❌ Reject",callback_data="r_"+oid)
     )
 
@@ -326,45 +337,10 @@ def screenshot(m):
     reply_markup=kb
     )
 
-    bot.send_message(m.chat.id,"✅ Order Submitted")
+    bot.send_message(m.chat.id,"Order Submitted")
 
     user_step.pop(m.from_user.id,None)
     order_data.pop(m.from_user.id,None)
-
-# ---------------- APPROVE ----------------
-
-@bot.callback_query_handler(func=lambda c:c.data.startswith("a_"))
-def approve(c):
-
-    oid=c.data.split("")[1]
-
-    cursor.execute("UPDATE orders SET status='approved' WHERE order_id=?",(oid,))
-    conn.commit()
-
-    bot.edit_message_caption(f"Order {oid}\n\n✅ APPROVED",c.message.chat.id,c.message.message_id)
-
-# ---------------- REJECT ----------------
-
-@bot.callback_query_handler(func=lambda c:c.data.startswith("r"))
-def reject(c):
-
-    oid=c.data.split("_")[1]
-
-    cursor.execute("UPDATE orders SET status='rejected' WHERE order_id=?",(oid,))
-    conn.commit()
-
-    bot.edit_message_caption(f"Order {oid}\n\n❌ REJECTED",c.message.chat.id,c.message.message_id)
-
-# ---------------- RESTART ----------------
-
-@bot.message_handler(func=lambda m:m.text=="🔄 Restart Bot")
-def restart(m):
-
-    user_step.pop(m.from_user.id,None)
-    order_data.pop(m.from_user.id,None)
-
-    bot.send_message(m.chat.id,"🔄 Bot Restarted")
-    start(m)
 
 # ---------------- RUN BOT ----------------
 
