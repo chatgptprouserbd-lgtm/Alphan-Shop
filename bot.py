@@ -438,9 +438,6 @@ def my_orders(m):
 @bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
 def support(m):
 
-    @bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
-def support(m):
-
     kb = InlineKeyboardMarkup()
 
     kb.add(
