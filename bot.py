@@ -77,7 +77,7 @@ packages={
 "p1":"🟢 ৮ লাখ গ্লোরি",
 "p2":"🟢 ৬ লাখ গ্লোরি",
 "p3":"🔶 ফুল গিল্ড ম্যাক্স",
-"p4":"⚡ ট্রায়াল প্যাকেজ",
+"p4":"⚡ ট্রায়াল প্যাকেজ",
 "p5":"⚡ ৭ লেভেল ম্যাক্স গিল্ড"
 }
 
@@ -100,31 +100,11 @@ def start(m):
     kb.add("ℹ️ About Shop","🔄 Restart Bot")
 
     bot.send_message(
-m.chat.id,
-"""
-ℹ️ ABOUT ALPHAN GAMING SHOP
+        m.chat.id,
+        "👑 Welcome to ALPHAN GAMING SHOP\n\nGlory Bot Sale",
+        reply_markup=kb
+    )
 
-━━━━━━━━━━━━━━
-
-👑 Shop Name:
-ALPHAN GAMING SHOP
-
-⚡ Service:
-Glory Bot Sale
-
-🎮 আমরা Free Fire guild boosting
-এবং glory service প্রদান করি।
-
-✔ Trusted Service
-✔ Fast Delivery
-✔ Active Support
-
-━━━━━━━━━━━━━━
-
-📞 Support:
-WhatsApp - 01607254046
-"""
-)
 # ---------------- ADMIN PANEL ----------------
 
 @bot.message_handler(commands=['admin'])
@@ -230,7 +210,7 @@ def price_list(m):
 🟢 ৮ লাখ গ্লোরি – ৳{get_price('p1')}
 🟢 ৬ লাখ গ্লোরি – ৳{get_price('p2')}
 🔶 ফুল গিল্ড ম্যাক্স – ৳{get_price('p3')}
-⚡ ট্রায়াল প্যাকেজ – ৳{get_price('p4')}
+⚡ ট্রায়াল প্যাকেজ – ৳{get_price('p4')}
 ⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳{get_price('p5')}
 """
 
@@ -297,6 +277,7 @@ original screenshot send করবেন।
 ⚠️ Fake screenshot দিলে order reject হবে।
 """
 )
+
 # ---------------- SCREENSHOT ----------------
 
 @bot.message_handler(content_types=['photo'])
@@ -342,11 +323,11 @@ m.chat.id,
 
 ━━━━━━━━━━━━━━
 
-আপনার order সফলভাবে submit হয়েছে।
+আপনার order সফলভাবে submit হয়েছে।
 
 ⏳ এখন Admin review করবে।
 
-অনুগ্রহ করে কিছু সময় অপেক্ষা করুন।
+অনুগ্রহ করে কিছু সময় অপেক্ষা করুন।
 
 ━━━━━━━━━━━━━━
 
@@ -457,6 +438,9 @@ def my_orders(m):
 @bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
 def support(m):
 
+    @bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
+def support(m):
+
     kb = InlineKeyboardMarkup()
 
     kb.add(
@@ -486,19 +470,20 @@ m.chat.id,
 
 1️⃣ Guild অবশ্যই **Auto Approval ON** করে রাখবেন
 
-2️⃣ Order করার সময় **সঠিক Clan / Guild UID** দিবেন
+2️⃣ Order করার সময় **সঠিক Clan / Guild UID** দিবেন
 
 3️⃣ Payment করার পরে **Original Screenshot** দিতে হবে
 
 4️⃣ Payment অবশ্যই **Send Money** করতে হবে
 
-5️⃣ ভুল UID দিলে bot দায়ী থাকবে না
+5️⃣ ভুল UID দিলে bot দায়ী থাকবে না
 
 ━━━━━━━━━━━━━━
 
 ✔ Rules follow করলে order দ্রুত approve হবে
 """
 )
+
 # ---------------- ABOUT ----------------
 
 @bot.message_handler(func=lambda m:m.text=="ℹ️ About Shop")
