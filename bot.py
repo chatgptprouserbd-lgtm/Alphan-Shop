@@ -74,11 +74,11 @@ def get_price(p):
     return cursor.fetchone()[0]
 
 packages={
-"p1":"🟢 ৮ লাখ গ্লোরি",
+"p1":"🟢 ৪ লাখ গ্লোরি",
 "p2":"🟢 ৬ লাখ গ্লোরি",
 "p3":"🔶 ফুল গিল্ড ম্যাক্স",
 "p4":"⚡ ট্রায়াল প্যাকেজ",
-"p5":"⚡ ৭ লেভেল ম্যাক্স গিল্ড"
+"p5":"⚡ ৭ লেভেল গিল্ড ক্রয়"
 }
 
 user_step={}
@@ -207,11 +207,11 @@ def price_list(m):
     text=f"""
 👑 ALPHAN SPECIAL OFFERS 👑
 
-🟢 ৮ লাখ গ্লোরি – ৳{get_price('p1')}
+🟢 ৪ লাখ গ্লোরি – ৳{get_price('p1')}
 🟢 ৬ লাখ গ্লোরি – ৳{get_price('p2')}
 🔶 ফুল গিল্ড ম্যাক্স – ৳{get_price('p3')}
 ⚡ ট্রায়াল প্যাকেজ – ৳{get_price('p4')}
-⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳{get_price('p5')}
+⚡ ৭ লেভেল গিল্ড ক্রয় – ৳{get_price('p5')}
 """
 
     bot.send_message(m.chat.id,text)
