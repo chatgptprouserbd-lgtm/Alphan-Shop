@@ -1,4 +1,3 @@
-:::writing{variant="standard" id="48291"}
 from flask import Flask
 import threading
 import os
