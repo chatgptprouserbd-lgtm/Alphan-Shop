@@ -233,10 +233,39 @@ def shop(m):
 @bot.callback_query_handler(func=lambda c:c.data in packages)
 def package_select(c):
 
+    if c.data == "p4":
+
+        kb = InlineKeyboardMarkup()
+        kb.add(
+            InlineKeyboardButton(
+                "✅ I Understand / Continue",
+                callback_data="confirm_trial"
+            )
+        )
+
+        bot.send_message(
+            c.message.chat.id,
+            trial_notice,
+            reply_markup=kb
+        )
+
+        return
+
     order_data[c.from_user.id]={"package":packages[c.data]}
     user_step[c.from_user.id]="uid"
 
     bot.send_message(c.message.chat.id,"Send Clan UID")
+
+@bot.callback_query_handler(func=lambda c:c.data=="confirm_trial")
+def confirm_trial(c):
+
+    order_data[c.from_user.id]={"package":packages["p4"]}
+    user_step[c.from_user.id]="uid"
+
+    bot.send_message(
+        c.message.chat.id,
+        "Send Clan UID"
+    )
 
 # ---------------- UID ----------------
 
