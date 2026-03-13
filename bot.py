@@ -9,7 +9,7 @@ import uuid
 
 # ---------------- KEEP ALIVE ----------------
 
-app = Flask(name)
+app = Flask(__name__)
 
 @app.route("/")
 def home():
