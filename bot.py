@@ -528,6 +528,7 @@ def restart(m):
 
 while True:
     try:
-        bot.infinity_polling(skip_pending=True)
-    except:
+        bot.infinity_polling(timeout=60, long_polling_timeout=60)
+    except Exception as e:
+        print(e)
         time.sleep(5)
