@@ -365,3 +365,12 @@ def restart(m):
     order_data.pop(m.from_user.id,None)
 
     bot.send_message(m.chat.id,"🔄 Bot Restarted")
+    start(m)
+
+# ---------------- RUN BOT ----------------
+
+while True:
+    try:
+        bot.infinity_polling(timeout=60,long_polling_timeout=60)
+    except:
+        time.sleep(5)
