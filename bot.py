@@ -74,43 +74,12 @@ def get_price(p):
     return cursor.fetchone()[0]
 
 packages={
-"p1":"🟢 ৪ লাখ গ্লোরি",
+"p1":"🟢 ৮ লাখ গ্লোরি",
 "p2":"🟢 ৬ লাখ গ্লোরি",
 "p3":"🔶 ফুল গিল্ড ম্যাক্স",
-"p4":"⚡ ট্রায়াল প্যাকেজ",
-"p5":"⚡ ৭ লেভেল গিল্ড ক্রয়"
+"p4":"⚡ ট্রায়াল প্যাকেজ",
+"p5":"⚡ ৭ লেভেল ম্যাক্স গিল্ড"
 }
-
-# ---------------- TRIAL NOTICE ----------------
-
-trial_notice = """
-⚠️ TRIAL PACKAGE NOTICE
-
-━━━━━━━━━━━━━━
-
-এই Trial Package এ থাকবে
-⚡ ৪টি Bot
-⏱ ৮ ঘন্টার জন্য
-
-আপনি মোট কত Glory পাবেন
-তা আগে থেকে বলা সম্ভব নয়।
-
-এটি সম্পূর্ণ Server activity এর উপর depend করে।
-
-━━━━━━━━━━━━━━
-
-⚠️ কখনও কখনও Server এ Rush থাকলে
-Bot Guild এ ঢুকতে কিছু সময় লাগতে পারে।
-
-অনুগ্রহ করে একটু অপেক্ষা করবেন।
-
-━━━━━━━━━━━━━━
-
-যদি এই সমস্যা না চান
-তাহলে Premium Package ব্যবহার করুন।
-
-━━━━━━━━━━━━━━
-"""
 
 user_step={}
 order_data={}
@@ -131,11 +100,31 @@ def start(m):
     kb.add("ℹ️ About Shop","🔄 Restart Bot")
 
     bot.send_message(
-        m.chat.id,
-        "👑 Welcome to ALPHAN GAMING SHOP\n\nGlory Bot Sale",
-        reply_markup=kb
-    )
+m.chat.id,
+"""
+ℹ️ ABOUT ALPHAN GAMING SHOP
 
+━━━━━━━━━━━━━━
+
+👑 Shop Name:
+ALPHAN GAMING SHOP
+
+⚡ Service:
+Glory Bot Sale
+
+🎮 আমরা Free Fire guild boosting
+এবং glory service প্রদান করি।
+
+✔ Trusted Service
+✔ Fast Delivery
+✔ Active Support
+
+━━━━━━━━━━━━━━
+
+📞 Support:
+WhatsApp - 01607254046
+"""
+)
 # ---------------- ADMIN PANEL ----------------
 
 @bot.message_handler(commands=['admin'])
@@ -147,7 +136,7 @@ def admin_panel(m):
     kb=ReplyKeyboardMarkup(resize_keyboard=True)
     kb.add("📢 Send Notice","💰 Edit Price")
 
-    bot.send_message(m.chat.id,"⚙️ ADMIN PANEL",reply_markup=kb)
+    bot.send_message(m.chat.id,"ADMIN PANEL",reply_markup=kb)
 
 # ---------------- NOTICE ----------------
 
@@ -184,7 +173,7 @@ def send_notice(m):
         except:
             pass
 
-    bot.send_message(m.chat.id,"✅ Notice Sent")
+    bot.send_message(m.chat.id,"Notice Sent")
     user_step.pop(m.from_user.id,None)
 
 # ---------------- EDIT PRICE ----------------
@@ -197,7 +186,7 @@ def edit_price(m):
 
     kb=InlineKeyboardMarkup()
 
-    kb.add(InlineKeyboardButton("4L Glory",callback_data="edit_p1"))
+    kb.add(InlineKeyboardButton("8L Glory",callback_data="edit_p1"))
     kb.add(InlineKeyboardButton("6L Glory",callback_data="edit_p2"))
     kb.add(InlineKeyboardButton("Full Guild",callback_data="edit_p3"))
     kb.add(InlineKeyboardButton("Trial",callback_data="edit_p4"))
@@ -238,11 +227,11 @@ def price_list(m):
     text=f"""
 👑 ALPHAN SPECIAL OFFERS 👑
 
-🟢 ৪ লাখ গ্লোরি – ৳{get_price('p1')}
+🟢 ৮ লাখ গ্লোরি – ৳{get_price('p1')}
 🟢 ৬ লাখ গ্লোরি – ৳{get_price('p2')}
 🔶 ফুল গিল্ড ম্যাক্স – ৳{get_price('p3')}
-⚡ ট্রায়াল প্যাকেজ – ৳{get_price('p4')}
-⚡ ৭ লেভেল গিল্ড ক্রয় – ৳{get_price('p5')}
+⚡ ট্রায়াল প্যাকেজ – ৳{get_price('p4')}
+⚡ ৭ লেভেল ম্যাক্স গিল্ড – ৳{get_price('p5')}
 """
 
     bot.send_message(m.chat.id,text)
@@ -264,23 +253,7 @@ def shop(m):
 @bot.callback_query_handler(func=lambda c:c.data in packages)
 def package_select(c):
 
-    if c.data=="p4":
-
-        kb=InlineKeyboardMarkup()
-        kb.add(InlineKeyboardButton("✅ Continue",callback_data="confirm_trial"))
-
-        bot.send_message(c.message.chat.id,trial_notice,reply_markup=kb)
-        return
-
     order_data[c.from_user.id]={"package":packages[c.data]}
-    user_step[c.from_user.id]="uid"
-
-    bot.send_message(c.message.chat.id,"Send Clan UID")
-
-@bot.callback_query_handler(func=lambda c:c.data=="confirm_trial")
-def confirm_trial(c):
-
-    order_data[c.from_user.id]={"package":packages["p4"]}
     user_step[c.from_user.id]="uid"
 
     bot.send_message(c.message.chat.id,"Send Clan UID")
@@ -303,8 +276,27 @@ def number(m):
     order_data[m.from_user.id]["number"]=m.text
     user_step[m.from_user.id]="ss"
 
-    bot.send_message(m.chat.id,"Send Payment Screenshot")
+    bot.send_message(
+m.chat.id,
+"""
+💳 PAYMENT INSTRUCTION
 
+━━━━━━━━━━━━━━
+
+📱 bKash / Nagad
+
+Number: 01861316505
+
+✔ Only Send Money
+
+━━━━━━━━━━━━━━
+
+📸 Payment করার পরে অবশ্যই
+original screenshot send করবেন।
+
+⚠️ Fake screenshot দিলে order reject হবে।
+"""
+)
 # ---------------- SCREENSHOT ----------------
 
 @bot.message_handler(content_types=['photo'])
@@ -333,19 +325,230 @@ def screenshot(m):
     bot.send_photo(
     ADMIN_ID,
     m.photo[-1].file_id,
-    f"NEW ORDER\n\nID: {oid}\nPackage: {d['package']}\nUID: {d['uid']}\nWA: {d['number']}",
+    f"""NEW ORDER
+
+ID: {oid}
+
+Package: {d['package']}
+UID: {d['uid']}
+WA: {d['number']}""",
     reply_markup=kb
     )
 
-    bot.send_message(m.chat.id,"Order Submitted")
+    bot.send_message(
+m.chat.id,
+"""
+✅ ORDER RECEIVED
+
+━━━━━━━━━━━━━━
+
+আপনার order সফলভাবে submit হয়েছে।
+
+⏳ এখন Admin review করবে।
+
+অনুগ্রহ করে কিছু সময় অপেক্ষা করুন।
+
+━━━━━━━━━━━━━━
+
+🙏 ALPHAN GAMING SHOP ব্যবহার করার জন্য ধন্যবাদ।
+"""
+)
 
     user_step.pop(m.from_user.id,None)
     order_data.pop(m.from_user.id,None)
+
+# ---------------- APPROVE ----------------
+
+@bot.callback_query_handler(func=lambda c:c.data.startswith("a_"))
+def approve(c):
+
+    oid=c.data.split("_")[1]
+
+    cursor.execute("UPDATE orders SET status='approved' WHERE order_id=?",(oid,))
+    conn.commit()
+
+    bot.edit_message_caption(
+    f"Order {oid}\n\n✅ APPROVED",
+    c.message.chat.id,
+    c.message.message_id)
+
+    cursor.execute("SELECT user_id FROM orders WHERE order_id=?",(oid,))
+    user_id=cursor.fetchone()[0]
+
+    bot.send_message(
+    user_id,
+    f"""
+✅ ORDER APPROVED
+
+━━━━━━━━━━━━━━
+
+Your Order ID: {oid}
+
+Your order has been approved.
+
+━━━━━━━━━━━━━━
+
+Thank you for choosing
+ALPHAN GAMING SHOP
+"""
+    )
+
+# ---------------- REJECT ----------------
+
+@bot.callback_query_handler(func=lambda c:c.data.startswith("r_"))
+def reject(c):
+
+    oid=c.data.split("_")[1]
+
+    cursor.execute("UPDATE orders SET status='rejected' WHERE order_id=?",(oid,))
+    conn.commit()
+
+    bot.edit_message_caption(
+    f"Order {oid}\n\n❌ REJECTED",
+    c.message.chat.id,
+    c.message.message_id)
+
+    cursor.execute("SELECT user_id FROM orders WHERE order_id=?",(oid,))
+    user_id=cursor.fetchone()[0]
+
+    bot.send_message(
+    user_id,
+    f"""
+❌ ORDER REJECTED
+
+━━━━━━━━━━━━━━
+
+Your Order ID: {oid}
+
+Unfortunately your order was rejected.
+
+Please contact support if needed.
+
+━━━━━━━━━━━━━━
+
+ALPHAN GAMING SHOP
+"""
+    )
+# ---------------- MY ORDERS ----------------
+
+@bot.message_handler(func=lambda m:m.text=="📦 My Orders")
+def my_orders(m):
+
+    cursor.execute(
+    "SELECT order_id,package,status FROM orders WHERE user_id=?",
+    (m.from_user.id,)
+    )
+
+    rows=cursor.fetchall()
+
+    if not rows:
+        bot.send_message(m.chat.id,"No orders found")
+        return
+
+    text="YOUR ORDERS\n\n"
+
+    for r in rows:
+        text+=f"{r[0]} | {r[1]} | {r[2]}\n"
+
+    bot.send_message(m.chat.id,text)
+
+# ---------------- SUPPORT ----------------
+
+@bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
+def support(m):
+
+    @bot.message_handler(func=lambda m:m.text=="📞 Customer Support")
+def support(m):
+
+    kb = InlineKeyboardMarkup()
+
+    kb.add(
+        InlineKeyboardButton(
+            "📞 Chat on WhatsApp",
+            url="https://wa.me/8801607254046"
+        )
+    )
+
+    bot.send_message(
+        m.chat.id,
+        "Customer Support এ যোগাযোগ করতে নিচের বাটনে চাপুন:",
+        reply_markup=kb
+    )
+
+# ---------------- RULES ----------------
+
+@bot.message_handler(func=lambda m:m.text=="📜 Order Rules")
+def rules(m):
+
+    bot.send_message(
+m.chat.id,
+"""
+📜 ORDER RULES
+
+━━━━━━━━━━━━━━
+
+1️⃣ Guild অবশ্যই **Auto Approval ON** করে রাখবেন
+
+2️⃣ Order করার সময় **সঠিক Clan / Guild UID** দিবেন
+
+3️⃣ Payment করার পরে **Original Screenshot** দিতে হবে
+
+4️⃣ Payment অবশ্যই **Send Money** করতে হবে
+
+5️⃣ ভুল UID দিলে bot দায়ী থাকবে না
+
+━━━━━━━━━━━━━━
+
+✔ Rules follow করলে order দ্রুত approve হবে
+"""
+)
+# ---------------- ABOUT ----------------
+
+@bot.message_handler(func=lambda m:m.text=="ℹ️ About Shop")
+def about(m):
+
+    bot.send_message(
+m.chat.id,
+"""
+ℹ️ ABOUT ALPHAN GAMING SHOP
+
+━━━━━━━━━━━━━━
+
+👑 Shop Name:
+ALPHAN GAMING SHOP
+
+⚡ Service:
+Glory Bot Sale
+
+🎮 আমরা Free Fire guild boosting
+এবং glory service প্রদান করি।
+
+✔ Trusted Service
+✔ Fast Delivery
+✔ Active Support
+
+━━━━━━━━━━━━━━
+
+📞 Support:
+WhatsApp - 01607254046
+"""
+)
+
+# ---------------- RESTART ----------------
+
+@bot.message_handler(func=lambda m:m.text=="🔄 Restart Bot")
+def restart(m):
+
+    user_step.pop(m.from_user.id,None)
+    order_data.pop(m.from_user.id,None)
+
+    bot.send_message(m.chat.id,"Bot Restarted")
+    start(m)
 
 # ---------------- RUN BOT ----------------
 
 while True:
     try:
-        bot.infinity_polling(timeout=60,long_polling_timeout=60)
+        bot.infinity_polling(skip_pending=True)
     except:
         time.sleep(5)
