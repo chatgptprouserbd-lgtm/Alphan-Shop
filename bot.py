@@ -1,3 +1,4 @@
+:::writing{variant="standard" id="48291"}
 from flask import Flask
 import threading
 import os
@@ -9,7 +10,7 @@ import uuid
 
 # ---------------- KEEP ALIVE ----------------
 
-app = Flask(__name__)
+app = Flask(name)
 
 @app.route("/")
 def home():
@@ -81,28 +82,23 @@ packages={
 "p5":"⚡ ৭ লেভেল গিল্ড ক্রয়"
 }
 
-# ---------------- TRIAL NOTICE ----------------
-
 trial_notice = """
 ⚠️ TRIAL PACKAGE NOTICE
 
 ━━━━━━━━━━━━━━
 
-Trial Package সম্পর্কে গুরুত্বপূর্ণ তথ্য:
+এই Trial Package এ ৪টি Bot থাকবে ৮ ঘন্টার জন্য।
 
-1️⃣ এই Trial Package এ ৪টি Bot থাকবে ৮ ঘন্টার জন্য।
+আপনি মোট কত Glory পাবেন তা আগে থেকে বলা সম্ভব নয়।
+এটি সম্পূর্ণ Server activity এর উপর নির্ভর করে।
 
-2️⃣ আপনি মোট কত Glory পাবেন তা আগে থেকে বলা সম্ভব নয়।
-এটি সম্পূর্ণ Server activity এর উপর depend করে।
-
-3️⃣ কখনও কখনও Server এ বেশি Rush থাকলে Bot Guild এ ঢুকতে সময় লাগতে পারে।
+কখনও কখনও Server এ বেশি Rush থাকলে Bot Guild এ ঢুকতে সময় লাগতে পারে।
 
 ━━━━━━━━━━━━━━
 
 ⚠️ এটি একটি Trial Package।
 
-যদি আপনি এই সমস্যা না চান,
-তাহলে Original Premium Package নেওয়ার পরামর্শ দেওয়া হচ্ছে।
+যদি এই সমস্যা না চান তাহলে Premium Package ব্যবহার করুন।
 
 ━━━━━━━━━━━━━━
 """
@@ -142,7 +138,7 @@ def admin_panel(m):
     kb=ReplyKeyboardMarkup(resize_keyboard=True)
     kb.add("📢 Send Notice","💰 Edit Price")
 
-    bot.send_message(m.chat.id,"ADMIN PANEL",reply_markup=kb)
+    bot.send_message(m.chat.id,"⚙️ ADMIN PANEL",reply_markup=kb)
 
 # ---------------- NOTICE ----------------
 
@@ -179,7 +175,7 @@ def send_notice(m):
         except:
             pass
 
-    bot.send_message(m.chat.id,"Notice Sent")
+    bot.send_message(m.chat.id,"✅ Notice Sent")
     user_step.pop(m.from_user.id,None)
 
 # ---------------- EDIT PRICE ----------------
@@ -203,9 +199,8 @@ def edit_price(m):
 @bot.callback_query_handler(func=lambda c:c.data.startswith("edit_"))
 def edit_select(c):
 
-    pkg=c.data.split("_")[1]
+    pkg=c.data.split("")[1]
     order_data[c.from_user.id]={"edit":pkg}
-
     user_step[c.from_user.id]="price"
 
     bot.send_message(c.message.chat.id,"Send new price")
@@ -222,8 +217,25 @@ def save_price(m):
 
     conn.commit()
 
-    bot.send_message(m.chat.id,"Price Updated")
+    bot.send_message(m.chat.id,"✅ Price Updated")
     user_step.pop(m.from_user.id,None)
+
+# ---------------- PRICE LIST ----------------
+
+@bot.message_handler(func=lambda m:m.text=="👑 Price List")
+def price_list(m):
+
+    text=f"""
+👑 ALPHAN SPECIAL OFFERS 👑
+
+🟢 ৪ লাখ গ্লোরি – ৳{get_price('p1')}
+🟢 ৬ লাখ গ্লোরি – ৳{get_price('p2')}
+🔶 ফুল গিল্ড ম্যাক্স – ৳{get_price('p3')}
+⚡ ট্রায়াল প্যাকেজ – ৳{get_price('p4')}
+⚡ ৭ লেভেল গিল্ড ক্রয় – ৳{get_price('p5')}
+"""
+
+    bot.send_message(m.chat.id,text)
 
 # ---------------- SHOP ITEMS ----------------
 
@@ -239,24 +251,15 @@ def shop(m):
 
 # ---------------- PACKAGE SELECT ----------------
 
-@bot.callback_query_handler(func=lambda c: c.data in packages)
+@bot.callback_query_handler(func=lambda c:c.data in packages)
 def package_select(c):
 
-    if c.data == "p4":
+    if c.data=="p4":
 
-        kb = InlineKeyboardMarkup()
-        kb.add(
-            InlineKeyboardButton(
-                "✅ I Understand / Continue",
-                callback_data="confirm_trial"
-            )
-        )
+        kb=InlineKeyboardMarkup()
+        kb.add(InlineKeyboardButton("✅ Continue",callback_data="confirm_trial"))
 
-        bot.send_message(
-            c.message.chat.id,
-            trial_notice,
-            reply_markup=kb
-        )
+        bot.send_message(c.message.chat.id,trial_notice,reply_markup=kb)
         return
 
     order_data[c.from_user.id]={"package":packages[c.data]}
@@ -272,10 +275,93 @@ def confirm_trial(c):
 
     bot.send_message(c.message.chat.id,"Send Clan UID")
 
-# ---------------- RUN BOT ----------------
+# ---------------- UID ----------------
 
-while True:
-    try:
-        bot.infinity_polling(timeout=60,long_polling_timeout=60)
-    except:
-        time.sleep(5)
+@bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="uid")
+def uid(m):
+
+    order_data[m.from_user.id]["uid"]=m.text
+    user_step[m.from_user.id]="number"
+
+    bot.send_message(m.chat.id,"Send WhatsApp Number")
+
+# ---------------- NUMBER ----------------
+
+@bot.message_handler(func=lambda m:user_step.get(m.from_user.id)=="number")
+def number(m):
+
+    order_data[m.from_user.id]["number"]=m.text
+    user_step[m.from_user.id]="ss"
+
+    bot.send_message(m.chat.id,"Send Payment Screenshot")
+
+# ---------------- SCREENSHOT ----------------
+
+@bot.message_handler(content_types=['photo'])
+def screenshot(m):
+
+    if user_step.get(m.from_user.id)!="ss":
+        return
+
+    d=order_data[m.from_user.id]
+    oid=str(uuid.uuid4())[:8]
+
+    cursor.execute(
+    "INSERT INTO orders VALUES(?,?,?,?,?,?)",
+    (oid,m.from_user.id,d["package"],d["uid"],d["number"],"pending")
+    )
+
+    conn.commit()
+
+    kb=InlineKeyboardMarkup()
+
+    kb.add(
+    InlineKeyboardButton("✅ Approve",callback_data="a"+oid),
+    InlineKeyboardButton("❌ Reject",callback_data="r_"+oid)
+    )
+
+    bot.send_photo(
+    ADMIN_ID,
+    m.photo[-1].file_id,
+    f"NEW ORDER\n\nID: {oid}\nPackage: {d['package']}\nUID: {d['uid']}\nWA: {d['number']}",
+    reply_markup=kb
+    )
+
+    bot.send_message(m.chat.id,"✅ Order Submitted")
+
+    user_step.pop(m.from_user.id,None)
+    order_data.pop(m.from_user.id,None)
+
+# ---------------- APPROVE ----------------
+
+@bot.callback_query_handler(func=lambda c:c.data.startswith("a_"))
+def approve(c):
+
+    oid=c.data.split("")[1]
+
+    cursor.execute("UPDATE orders SET status='approved' WHERE order_id=?",(oid,))
+    conn.commit()
+
+    bot.edit_message_caption(f"Order {oid}\n\n✅ APPROVED",c.message.chat.id,c.message.message_id)
+
+# ---------------- REJECT ----------------
+
+@bot.callback_query_handler(func=lambda c:c.data.startswith("r"))
+def reject(c):
+
+    oid=c.data.split("_")[1]
+
+    cursor.execute("UPDATE orders SET status='rejected' WHERE order_id=?",(oid,))
+    conn.commit()
+
+    bot.edit_message_caption(f"Order {oid}\n\n❌ REJECTED",c.message.chat.id,c.message.message_id)
+
+# ---------------- RESTART ----------------
+
+@bot.message_handler(func=lambda m:m.text=="🔄 Restart Bot")
+def restart(m):
+
+    user_step.pop(m.from_user.id,None)
+    order_data.pop(m.from_user.id,None)
+
+    bot.send_message(m.chat.id,"🔄 Bot Restarted")
